@@ -1,0 +1,17 @@
+name = "SingleModeApproximation"
+uuid = "5cc7fde8-cb1c-4e9c-8eab-9f209b9d15ae"
+authors = ["zongyy"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[compat]
+julia = "1.11"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+
+[targets]
+test = ["Test", "SafeTestsets"]

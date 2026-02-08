@@ -1,1 +1,1 @@
-# SingleModeApproximation.jl
+./docs/src/index.md

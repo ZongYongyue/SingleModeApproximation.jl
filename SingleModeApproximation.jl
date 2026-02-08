@@ -1,5 +1,0 @@
-module SingleModeApproximation
-
-
-
-end #module
