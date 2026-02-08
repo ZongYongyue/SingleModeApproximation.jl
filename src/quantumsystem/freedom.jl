@@ -48,13 +48,19 @@ qn.spin  # 2
 """
 struct QuantumNumber{Names, Types<:Tuple}
     data::NamedTuple{Names, Types}
+
+    # Inner constructor from NamedTuple
+    function QuantumNumber{Names, Types}(nt::NamedTuple{Names, Types}) where {Names, Types<:Tuple}
+        new{Names, Types}(nt)
+    end
 end
 
-# Constructor from keyword arguments
+# Outer constructor from keyword arguments
 QuantumNumber(; kwargs...) = QuantumNumber(NamedTuple(kwargs))
 
-# Constructor from NamedTuple
-QuantumNumber(nt::NamedTuple) = QuantumNumber{keys(nt), typeof(values(nt))}(nt)
+# Outer constructor from NamedTuple (generic)
+QuantumNumber(nt::NamedTuple{Names, Types}) where {Names, Types<:Tuple} =
+    QuantumNumber{Names, Types}(nt)
 
 # Property access: qn.field -> qn.data.field
 function Base.getproperty(qn::QuantumNumber, name::Symbol)

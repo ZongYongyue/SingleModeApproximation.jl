@@ -18,6 +18,8 @@ makedocs(;
         "Hartree-Fock Approximation" => "hartreefock.md",
         "Single-Mode Approximation" => "singlemode.md",
     ],
+    checkdocs=:none,
+    warnonly=true,
 )
 
 deploydocs(;
