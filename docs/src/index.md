@@ -12,6 +12,8 @@ The package implements a systematic approach to quantum many-body problems:
 
 This workflow follows the standard approach used in modern condensed matter physics, as exemplified in studies of topological magnons, spin-wave excitations, and collective modes in quantum materials.
 
+See documents: https://zongyongyue.github.io/SingleModeApproximation.jl
+
 ## The Single-Mode Approximation Method
 
 The single-mode approximation, introduced by Feynman (1954) for superfluid helium, is a powerful technique for studying collective excitations in interacting quantum systems. The key idea is to construct momentum-dependent operators that create elementary excitations from the ground state:
