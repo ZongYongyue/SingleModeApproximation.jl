@@ -23,4 +23,5 @@ makedocs(;
 deploydocs(;
     repo="github.com/zongyy/SingleModeApproximation.jl",
     devbranch="main",
+    push_preview=true,
 )
