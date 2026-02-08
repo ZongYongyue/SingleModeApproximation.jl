@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Quantum System · SingleModeApproximation.jl</title><meta name="title" content="Quantum System · SingleModeApproximation.jl"/><meta property="og:title" content="Quantum System · SingleModeApproximation.jl"/><meta property="twitter:title" content="Quantum System · SingleModeApproximation.jl"/><meta name="description" content="Documentation for SingleModeApproximation.jl."/><meta property="og:description" content="Documentation for SingleModeApproximation.jl."/><meta property="twitter:description" content="Documentation for SingleModeApproximation.jl."/><meta property="og:url" content="https://zongyy.github.io/SingleModeApproximation.jl/quantumsystem/"/><meta property="twitter:url" content="https://zongyy.github.io/SingleModeApproximation.jl/quantumsystem/"/><link rel="canonical" href="https://zongyy.github.io/SingleModeApproximation.jl/quantumsystem/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">SingleModeApproximation.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Quantum System</a><ul class="internal"><li><a class="tocitem" href="#Introduction"><span>Introduction</span></a></li><li><a class="tocitem" href="#Core-Concepts"><span>Core Concepts</span></a></li><li><a class="tocitem" href="#Example-1:-Twisted-Bilayer-MoTe-Kane-Mele-Model"><span>Example 1: Twisted Bilayer MoTe₂ Kane-Mele Model</span></a></li><li><a class="tocitem" href="#Example-2:-Multi-Orbital-Extended-Hubbard-Model"><span>Example 2: Multi-Orbital Extended Hubbard Model</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../hartreefock/">Hartree-Fock Approximation</a></li><li><a class="tocitem" href="../singlemode/">Single-Mode Approximation</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Quantum System</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Quantum System</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/zongyy/SingleModeApproximation.jl/blob/main/docs/src/quantumsystem.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Quantum-System-Tutorial"><a class="docs-heading-anchor" href="#Quantum-System-Tutorial">Quantum System Tutorial</a><a id="Quantum-System-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Quantum-System-Tutorial" title="Permalink"></a></h1><h2 id="Introduction"><a class="docs-heading-anchor" href="#Introduction">Introduction</a><a id="Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction" title="Permalink"></a></h2><p>The <code>quantumsystem</code> module provides a flexible framework for constructing quantum many-body Hamiltonians in Julia. It is designed to:</p><ul><li>Define quantum systems with arbitrary degrees of freedom (spin, orbital, sublattice, valley, etc.)</li><li>Construct lattice structures with various geometries (square, honeycomb, triangular, etc.)</li><li>Generate operator terms using symbolic notation with flexible orderings</li><li>Build matrix and tensor representations for numerical calculations</li><li>Automatically handle fermionic anticommutation relations and operator reordering</li></ul><p>This tutorial demonstrates how to use the module through two cutting-edge examples from recent literature:</p><ol><li><strong>Twisted bilayer MoTe₂ Kane-Mele model</strong> (2025): A tight-binding model with topological bands and valley-dependent complex hopping</li><li><strong>Multi-orbital extended Hubbard model</strong>: Including Hund&#39;s coupling, pair hopping, and orbital-dependent interactions</li></ol><hr/><h2 id="Core-Concepts"><a class="docs-heading-anchor" href="#Core-Concepts">Core Concepts</a><a id="Core-Concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Core-Concepts" title="Permalink"></a></h2><h3 id="1.-Quantum-Numbers-and-Degrees-of-Freedom"><a class="docs-heading-anchor" href="#1.-Quantum-Numbers-and-Degrees-of-Freedom">1. Quantum Numbers and Degrees of Freedom</a><a id="1.-Quantum-Numbers-and-Degrees-of-Freedom-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Quantum-Numbers-and-Degrees-of-Freedom" title="Permalink"></a></h3><p>Quantum numbers are represented as named tuples that index the Hilbert space. The <code>SystemDofs</code> structure defines all quantum degrees of freedom:</p><pre><code class="language-julia hljs">using SingleModeApproximation
+
+# Example: System with site, sublattice, and valley
+dofs = SystemDofs(
+    site = 1:16,             # 16 sites
+    sublattice = [:A, :B],   # Two sublattices (honeycomb)
+    valley = [:K_plus, :K_minus]  # ±K valleys (or spin up/down)
+)
+
+# Create a quantum number
+qn = QN(site=1, sublattice=:A, valley=:K_plus)
+
+# Linear indexing
+idx = qn2linear(dofs, qn)      # Convert to linear index
+qn_back = linear2qn(dofs, idx)  # Convert back</code></pre><p><strong>Key features:</strong></p><ul><li>Named tuple representation: natural mathematical notation</li><li>Automatic linear indexing for matrix/tensor construction</li><li>Arbitrary quantum numbers supported (spin, orbital, layer, sublattice, valley, etc.)</li></ul><h3 id="2.-Lattice-Structure"><a class="docs-heading-anchor" href="#2.-Lattice-Structure">2. Lattice Structure</a><a id="2.-Lattice-Structure-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Lattice-Structure" title="Permalink"></a></h3><p>Lattices define spatial geometry and neighbor relationships:</p><pre><code class="language-julia hljs"># Honeycomb lattice (for MoTe₂, graphene, etc.)
+lattice = Lattice(:Honeycomb, 4, 4, pbc=true)
+
+# Square lattice (for cuprates, iron-based superconductors, etc.)
+lattice = Lattice(:Square, 6, 6, pbc=true)
+
+# Get neighbor bonds
+onsite_bonds = bonds(lattice, 0)   # On-site (delta=0)
+nn_bonds = bonds(lattice, 1)       # Nearest neighbors
+nnn_bonds = bonds(lattice, 2)      # Next-nearest neighbors
+
+# Each bond contains: site indices, displacement vector
+for bond in nn_bonds[1:3]
+    println(&quot;Bond: sites $(bond.i) -&gt; $(bond.j), delta=$(bond.delta)&quot;)
+    println(&quot;  Direction: &quot;, is_positive_direction(lattice, bond.delta))
+end</code></pre><h3 id="3.-Operators"><a class="docs-heading-anchor" href="#3.-Operators">3. Operators</a><a id="3.-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#3.-Operators" title="Permalink"></a></h3><p>The module provides symbolic operator construction:</p><ul><li><strong><code>c(qn)</code></strong>: Annihilation operator at quantum number <code>qn</code></li><li><strong><code>cdag(qn)</code></strong>: Creation operator at quantum number <code>qn</code></li><li><strong><code>Operators(value, op1, op2, ...)</code></strong>: Operator product with coefficient</li></ul><pre><code class="language-julia hljs">qn1 = QN(site=1, valley=:K_plus)
+qn2 = QN(site=2, valley=:K_plus)
+
+# Hopping term: -t c†₁ c₂
+term = Operators(-1.0, cdag(qn1), c(qn2))
+
+# Complex hopping: (0.81 - 1.32i) c†₁ c₂
+term_complex = Operators(0.81 - 1.32im, cdag(qn1), c(qn2))</code></pre><p><strong>Display in natural notation:</strong></p><pre><code class="language-julia hljs">terms = [
+    Operators(-3.49, cdag(QN(site=1, sublattice=:A)), c(QN(site=2, sublattice=:B))),
+    Operators(0.81-1.32im, cdag(QN(site=1, sublattice=:A)), c(QN(site=3, sublattice=:A)))
+]
+display(terms)
+# Output:
+# Operators with 2 terms:
+#   -3.49 c†_{1,A}c_{2,B}
+#   + (0.81 - 1.32im) c†_{1,A}c_{3,A}</code></pre><h3 id="4.-Term-Generators"><a class="docs-heading-anchor" href="#4.-Term-Generators">4. Term Generators</a><a id="4.-Term-Generators-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Term-Generators" title="Permalink"></a></h3><p>High-level functions generate common operator terms:</p><p><strong>One-body generators:</strong></p><pre><code class="language-julia hljs">generate_onebody(dofs, bonds, value; order=(cdag, 1, c, 2))</code></pre><ul><li><code>dofs</code>: Degrees of freedom</li><li><code>bonds</code>: Spatial bonds (from lattice)</li><li><code>value</code>: Coefficient (Number) or function <code>(delta, qn1, qn2) -&gt; Number</code></li><li><code>order</code>: Operator pattern, e.g., <code>(cdag, 1, c, 2)</code> means c†₁c₂</li></ul><p><strong>Two-body generators:</strong></p><pre><code class="language-julia hljs">generate_twobody(dofs, bonds, value; order=(cdag, 1, c, 1, cdag, 2, c, 2))</code></pre><p><strong>Convenience functions:</strong></p><ul><li><code>generate_coulomb_intra</code>, <code>generate_hund</code>, <code>generate_ising</code>, etc.</li></ul><h3 id="5.-Matrix/Tensor-Construction"><a class="docs-heading-anchor" href="#5.-Matrix/Tensor-Construction">5. Matrix/Tensor Construction</a><a id="5.-Matrix/Tensor-Construction-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Matrix/Tensor-Construction" title="Permalink"></a></h3><pre><code class="language-julia hljs"># One-body Hamiltonian matrix
+H_matrix = build_onebody_matrix(dofs, onebody_terms)
+
+# Two-body interaction tensor
+V_tensor = build_interaction_tensor(dofs, twobody_terms)</code></pre><hr/><h2 id="Example-1:-Twisted-Bilayer-MoTe-Kane-Mele-Model"><a class="docs-heading-anchor" href="#Example-1:-Twisted-Bilayer-MoTe-Kane-Mele-Model">Example 1: Twisted Bilayer MoTe₂ Kane-Mele Model</a><a id="Example-1:-Twisted-Bilayer-MoTe-Kane-Mele-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-Twisted-Bilayer-MoTe-Kane-Mele-Model" title="Permalink"></a></h2><p><strong>Reference:</strong> Qiu &amp; Wu, <em>Topological magnons and domain walls in twisted bilayer MoTe₂</em>, Phys. Rev. B <strong>112</strong>, 085132 (2025)</p><h3 id="Model-Description"><a class="docs-heading-anchor" href="#Model-Description">Model Description</a><a id="Model-Description-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Description" title="Permalink"></a></h3><p>The tight-binding Hamiltonian for twisted bilayer MoTe₂ projected onto Wannier states is:</p><p>$</p><p>\hat{H}<em>{KM} = \sum</em>{\tau, \alpha\beta, RR&#39;} t^\tau<em>{\alpha\beta}(R-R&#39;) b^\dagger</em>{R\alpha\tau} b_{R&#39;\beta\tau} $</p><p>where:</p><ul><li><p class="math-container">\[b^\dagger_{R\alpha\tau}\]</p>creates a hole at moiré unit cell <span>$R$</span>, sublattice <span>$\alpha$</span> (A or B), valley <span>$\tau$</span> (± or equivalently spin ↑↓)</li><li><p class="math-container">\[t^\tau_{\alpha\beta}(R-R&#39;)\]</p>are hopping parameters up to 5th nearest neighbors</li></ul><p><strong>Key features:</strong></p><ol><li><strong>Nearest-neighbor hopping</strong> <span>$t_1$</span>: Real, connects A-B sublattices</li><li><strong>Next-nearest-neighbor hopping</strong> <span>$t_2$</span>: <strong>Complex</strong> with phase factor <span>$e^{i\phi_t \tau \nu_{ij}}$</span><ul><li><p class="math-container">\[\tau = \pm\]</p>for valley (spin-valley locking)</li><li><p class="math-container">\[\nu_{ij} = +1\]</p>if hopping follows dashed arrows in Fig. 1, <span>$-1$</span> if against</li></ul></li><li><strong>Extended hoppings</strong> <span>$t_3, t_4, t_5$</span>: Connect further neighbors</li></ol><p>This is a <strong>generalized Kane-Mele model</strong> - two copies of time-reversal partner Haldane models - leading to topological Chern bands.</p><p><strong>Parameters at twist angle θ = 3.5°</strong> (from Fig. 1):</p><ul><li><p class="math-container">\[t_1 = -3.49\]</p>meV (nearest neighbor, real)</li><li><p class="math-container">\[t_2 = 0.81 - 1.32i\]</p>meV (next-nearest neighbor, complex with direction-dependent phase)</li><li><p class="math-container">\[t_3 = 0.72\]</p>meV</li><li><p class="math-container">\[t_4 = -0.26\]</p>meV</li><li><p class="math-container">\[t_5 = 0.08\]</p>meV</li></ul><h3 id="Implementation"><a class="docs-heading-anchor" href="#Implementation">Implementation</a><a id="Implementation-1"></a><a class="docs-heading-anchor-permalink" href="#Implementation" title="Permalink"></a></h3><pre><code class="language-julia hljs">using SingleModeApproximation
+using LinearAlgebra
+
+# ========================================
+# System setup
+# ========================================
+Lx, Ly = 4, 4
+lattice = Lattice(:Honeycomb, Lx, Ly, pbc=true)
+nsites = lattice.nsites
+
+# Degrees of freedom: site, sublattice (A/B), valley (± or ↑↓)
+# Valley ± is locked to spin ↑↓ in MoTe₂
+dofs = SystemDofs(
+    site = 1:nsites,
+    sublattice = [:A, :B],
+    valley = [:plus, :minus]  # τ = ± (or equivalently spin ↑↓)
+)
+
+println(&quot;Twisted MoTe₂ Kane-Mele model&quot;)
+println(&quot;System size: $nsites sites&quot;)
+println(&quot;Hilbert space dimension: &quot;, length(dofs))
+
+# ========================================
+# Parameters (from Qiu &amp; Wu, PRB 2025, Fig. 1, θ = 3.5°)
+# ========================================
+t1 = -3.49          # meV, nearest-neighbor (real)
+t2_mag = 0.81       # meV, magnitude of next-nearest-neighbor
+t2_phase = -1.32    # meV, imaginary part (encodes φ_t and direction)
+t3 = 0.72           # meV
+t4 = -0.26          # meV
+t5 = 0.08           # meV
+
+# ========================================
+# 1. Nearest-neighbor hopping: t1 (A-B)
+# ========================================
+nn_bonds = bonds(lattice, 1)
+
+function nn_hopping(delta, qn1, qn2)
+    # t1 connects A to B sublattices only
+    # Same valley (no valley mixing)
+    if qn1.sublattice != qn2.sublattice &amp;&amp; qn1.valley == qn2.valley
+        return t1
+    end
+    return 0.0
+end
+
+t1_terms = generate_onebody(
+    dofs, nn_bonds, nn_hopping;
+    order = (cdag, 1, c, 2)
+)
+
+# ========================================
+# 2. Next-nearest-neighbor hopping: t2 (A-A or B-B)
+#    Complex with valley and direction dependent phase
+# ========================================
+nnn_bonds = bonds(lattice, 2)
+
+function nnn_hopping(delta, qn1, qn2)
+    # t2 connects same sublattice (A-A or B-B)
+    # Has phase factor: exp(i φ_t τ ν_ij)
+    if qn1.sublattice == qn2.sublattice &amp;&amp; qn1.valley == qn2.valley
+        # Determine τ: +1 for valley=plus, -1 for valley=minus
+        tau = (qn1.valley == :plus) ? 1 : -1
+
+        # Determine ν_ij based on hopping direction
+        # On honeycomb lattice, next-nearest neighbors have specific directions
+        # ν_ij = +1 if following clockwise path around hexagon, -1 if counterclockwise
+        # This is encoded in delta and sublattice
+        # For honeycomb lattice, use displacement vector to determine circulation
+
+        # Get coordinates to determine direction
+        coord1 = get_coordinate(lattice, qn1.site)
+        coord2 = get_coordinate(lattice, qn2.site)
+        displacement = coord2 - coord1
+
+        # Determine circulation based on displacement and sublattice
+        # This follows the dashed arrows in Fig. 1 of the paper
+        # Simplified version: use cross product with reference direction
+        # For sublattice A: counterclockwise is positive
+        # For sublattice B: clockwise is positive
+        if qn1.sublattice == :A
+            # Example criterion (adjust based on actual lattice geometry)
+            nu_ij = (displacement[1] * 0.5 + displacement[2] &gt; 0) ? 1 : -1
+        else  # sublattice B
+            nu_ij = (displacement[1] * 0.5 + displacement[2] &gt; 0) ? -1 : 1
+        end
+
+        # Phase factor: exp(i φ_t τ ν_ij)
+        # From t2 = 0.81 - 1.32i, we extract the phase
+        # t2 = |t2| * exp(i * arg(t2)) = |t2| * exp(i φ_t τ ν_ij)
+        # For simplicity, use the full complex t2 with direction dependence
+        phase_factor = tau * nu_ij
+        t2_complex = (t2_mag + im * t2_phase)
+
+        # Apply phase: if phase_factor is negative, take complex conjugate
+        if phase_factor &gt; 0
+            return t2_complex
+        else
+            return conj(t2_complex)
+        end
+    end
+    return 0.0
+end
+
+t2_terms = generate_onebody(
+    dofs, nnn_bonds, nnn_hopping;
+    order = (cdag, 1, c, 2)
+)
+
+# ========================================
+# 3. Third-nearest-neighbor hopping: t3
+# ========================================
+tn3_bonds = bonds(lattice, 3)
+
+function t3_hopping(delta, qn1, qn2)
+    # Real hopping, same valley
+    if qn1.valley == qn2.valley
+        return t3
+    end
+    return 0.0
+end
+
+t3_terms = generate_onebody(
+    dofs, tn3_bonds, t3_hopping;
+    order = (cdag, 1, c, 2)
+)
+
+# ========================================
+# 4. Fourth-nearest-neighbor hopping: t4
+# ========================================
+tn4_bonds = bonds(lattice, 4)
+
+function t4_hopping(delta, qn1, qn2)
+    if qn1.valley == qn2.valley
+        return t4
+    end
+    return 0.0
+end
+
+t4_terms = generate_onebody(
+    dofs, tn4_bonds, t4_hopping;
+    order = (cdag, 1, c, 2)
+)
+
+# ========================================
+# 5. Fifth-nearest-neighbor hopping: t5
+# ========================================
+tn5_bonds = bonds(lattice, 5)
+
+function t5_hopping(delta, qn1, qn2)
+    if qn1.valley == qn2.valley
+        return t5
+    end
+    return 0.0
+end
+
+t5_terms = generate_onebody(
+    dofs, tn5_bonds, t5_hopping;
+    order = (cdag, 1, c, 2)
+)
+
+# ========================================
+# 6. Coulomb interactions (optional)
+# ========================================
+onsite_bonds = bonds(lattice, 0)
+U = 10.0  # On-site Coulomb repulsion (meV)
+
+coulomb_terms = generate_coulomb_intra(dofs, onsite_bonds, U)
+
+# ========================================
+# Combine all hopping terms
+# ========================================
+all_hopping_terms = vcat(
+    t1_terms,
+    t2_terms,
+    t3_terms,
+    t4_terms,
+    t5_terms
+)
+
+# Build one-body Hamiltonian
+H_KM = build_onebody_matrix(dofs, all_hopping_terms)
+V_int = build_interaction_tensor(dofs, coulomb_terms)
+
+# ========================================
+# Analysis
+# ========================================
+println(&quot;\n&quot; * &quot;=&quot;^70)
+println(&quot;Twisted Bilayer MoTe₂: Kane-Mele Model (Eq. 2 from PRB 112, 085132)&quot;)
+println(&quot;=&quot;^70)
+println(&quot;Parameters at θ = 3.5°:&quot;)
+println(&quot;  t1 = $t1 meV (NN, real)&quot;)
+println(&quot;  t2 = $(t2_mag) + $(t2_phase)i meV (NNN, complex)&quot;)
+println(&quot;  t3 = $t3 meV&quot;)
+println(&quot;  t4 = $t4 meV&quot;)
+println(&quot;  t5 = $t5 meV&quot;)
+println(&quot;  U = $U meV (on-site Coulomb)&quot;)
+
+println(&quot;\nSystem properties:&quot;)
+println(&quot;  Lattice: Honeycomb $(Lx)×$(Ly), $nsites sites&quot;)
+println(&quot;  Hilbert space: &quot;, size(H_KM, 1), &quot; states&quot;)
+println(&quot;  Hopping terms: &quot;, length(all_hopping_terms))
+println(&quot;    - t1 (NN): &quot;, length(t1_terms))
+println(&quot;    - t2 (NNN): &quot;, length(t2_terms))
+println(&quot;    - t3: &quot;, length(t3_terms))
+println(&quot;    - t4: &quot;, length(t4_terms))
+println(&quot;    - t5: &quot;, length(t5_terms))
+println(&quot;  Interaction terms: &quot;, length(coulomb_terms))
+
+# Diagonalize and analyze spectrum
+eigenvalues = eigvals(Hermitian(H_KM))
+println(&quot;\nOne-body band structure:&quot;)
+println(&quot;  Bandwidth: $(rd(maximum(real(eigenvalues)) - minimum(real(eigenvalues)))) meV&quot;)
+println(&quot;  Energy range: [$(rd(minimum(real(eigenvalues)))), $(rd(maximum(real(eigenvalues))))] meV&quot;)
+
+# Check if there&#39;s a gap (topological bands have gaps)
+sorted_eigs = sort(real(eigenvalues))
+mid_idx = length(sorted_eigs) ÷ 2
+if mid_idx &gt; 0 &amp;&amp; mid_idx &lt; length(sorted_eigs)
+    gap = sorted_eigs[mid_idx+1] - sorted_eigs[mid_idx]
+    println(&quot;  Gap around Fermi level: $(rd(gap)) meV&quot;)
+end
+
+# Check Hermiticity
+hermiticity_error = norm(H_KM - H_KM&#39;)
+println(&quot;\nHermiticity check: ||H - H†|| = $(hermiticity_error)&quot;)
+
+# Display sample terms
+println(&quot;\n&quot; * &quot;-&quot;^70)
+println(&quot;Sample t1 (nearest-neighbor) terms:&quot;)
+println(&quot;-&quot;^70)
+display(t1_terms[1:min(4, length(t1_terms))])
+
+println(&quot;\n&quot; * &quot;-&quot;^70)
+println(&quot;Sample t2 (next-nearest-neighbor, complex) terms:&quot;)
+println(&quot;-&quot;^70)
+display(t2_terms[1:min(4, length(t2_terms))])</code></pre><h3 id="Key-Features-Explained"><a class="docs-heading-anchor" href="#Key-Features-Explained">Key Features Explained</a><a id="Key-Features-Explained-1"></a><a class="docs-heading-anchor-permalink" href="#Key-Features-Explained" title="Permalink"></a></h3><ol><li><p><strong>Valley-dependent phase (Kane-Mele mechanism)</strong>:</p><ul><li>Next-nearest-neighbor hopping <span>$t_2$</span> has phase factor <span>$e^{i\phi_t \tau \nu_{ij}}$</span></li><li><p class="math-container">\[\tau = \pm\]</p>distinguishes ±K valleys (or spin ↑↓)</li><li><p class="math-container">\[\nu_{ij} = \pm 1\]</p>depends on circulation direction around hexagon</li><li>This breaks time-reversal within each valley but preserves combined <span>$\mathcal{T}$</span> symmetry</li><li>Leads to opposite Chern numbers ±1 in the two valleys</li></ul></li><li><p><strong>Topological properties</strong>:</p><ul><li>Two moiré valence bands with Chern numbers ±1 per valley</li><li>Quantum anomalous Hall effect at ν = 1 filling</li><li>Topological magnon excitations with chiral edge states</li></ul></li><li><p><strong>Wannier basis</strong>:</p><ul><li>A sublattice: polarized to top layer (t)</li><li>B sublattice: polarized to bottom layer (b)</li><li>Reflects layer-sublattice locking in twisted system</li></ul></li></ol><h3 id="Extensions-and-Applications"><a class="docs-heading-anchor" href="#Extensions-and-Applications">Extensions and Applications</a><a id="Extensions-and-Applications-1"></a><a class="docs-heading-anchor-permalink" href="#Extensions-and-Applications" title="Permalink"></a></h3><p>This model serves as the foundation for studying:</p><ul><li><strong>Topological magnons</strong> (intervalley spin-flip excitations with Chern numbers)</li><li><strong>Domain walls</strong> between regions with opposite Chern numbers</li><li><strong>Fractional quantum anomalous Hall states</strong> at other fillings</li><li><strong>Magnetic ordering temperature</strong> via effective spin models</li></ul><hr/><h2 id="Example-2:-Multi-Orbital-Extended-Hubbard-Model"><a class="docs-heading-anchor" href="#Example-2:-Multi-Orbital-Extended-Hubbard-Model">Example 2: Multi-Orbital Extended Hubbard Model</a><a id="Example-2:-Multi-Orbital-Extended-Hubbard-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Example-2:-Multi-Orbital-Extended-Hubbard-Model" title="Permalink"></a></h2><h3 id="Model-Description-2"><a class="docs-heading-anchor" href="#Model-Description-2">Model Description</a><a class="docs-heading-anchor-permalink" href="#Model-Description-2" title="Permalink"></a></h3><p>The multi-orbital extended Hubbard model describes strongly correlated systems with multiple orbitals per site. The Hamiltonian includes:</p><p>$</p><p>H = \sum<em>{ii&#39;, mm&#39;, \sigma} t^{ii&#39;}</em>{mm&#39;} c^\dagger<em>{im\sigma} c</em>{i&#39;m&#39;\sigma} + H_{\text{int}} $</p><p>The interaction part can be decomposed as:</p><p>$</p><p>H<em>{\text{int}} = \sum</em>i \left[ \sum<em>m U n</em>{m\uparrow} n<em>{m\downarrow} + \sum</em>{m \neq m&#39;, \sigma\sigma&#39;} U&#39; n<em>{m\sigma} n</em>{m&#39;\sigma&#39;} + \sum<em>{m \neq m&#39;} J c^\dagger</em>{m\uparrow} c^\dagger<em>{m\downarrow} c</em>{m&#39;\downarrow} c<em>{m&#39;\uparrow} - \sum</em>{m \neq m&#39;} J c^\dagger<em>{m\uparrow} c</em>{m\downarrow} c^\dagger<em>{m&#39;\downarrow} c</em>{m&#39;\uparrow} \right] $</p><p>where:</p><ul><li><strong>U</strong>: Intra-orbital Coulomb repulsion</li><li><strong>U&#39;</strong>: Inter-orbital Coulomb repulsion</li><li><strong>J</strong>: Hund&#39;s coupling (favors parallel spins) and spin-exchange term</li></ul><h3 id="Implementation-2"><a class="docs-heading-anchor" href="#Implementation-2">Implementation</a><a class="docs-heading-anchor-permalink" href="#Implementation-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">using SingleModeApproximation
+using LinearAlgebra
+
+# ========================================
+# System setup
+# ========================================
+Lx, Ly = 4, 4
+lattice = Lattice(:Square, Lx, Ly, pbc=true)
+nsites = lattice.nsites
+
+# Parameters
+t1 = 1.0      # Hopping for orbital 1 (eV)
+t2 = 0.8      # Hopping for orbital 2 (eV)
+t12 = 0.2     # Inter-orbital hopping (eV)
+U1 = 4.0      # Intra-orbital Coulomb for orbital 1 (eV)
+U2 = 3.5      # Intra-orbital Coulomb for orbital 2 (eV)
+U_prime = 2.0 # Inter-orbital Coulomb (eV)
+J_H = 0.6     # Hund&#39;s coupling (eV)
+
+# Degrees of freedom
+dofs = SystemDofs(
+    site = 1:nsites,
+    orbital = 1:2,
+    spin = [:up, :dn]
+)
+
+println(&quot;Multi-Orbital Extended Hubbard Model on $(Lx)×$(Ly) square lattice&quot;)
+println(&quot;Hilbert space dimension: &quot;, length(dofs))
+
+# ========================================
+# ONE-BODY TERMS
+# ========================================
+nn_bonds = bonds(lattice, 1)
+onsite_bonds = bonds(lattice, 0)
+
+# Intra-orbital hopping
+function intra_hopping(delta, qn1, qn2)
+    if qn1.orbital == qn2.orbital
+        return (qn1.orbital == 1) ? -t1 : -t2
+    end
+    return 0.0
+end
+
+hopping_intra = generate_onebody(dofs, nn_bonds, intra_hopping;
+    order = (cdag, 1, c, 2))
+
+# Inter-orbital hopping
+function inter_hopping(delta, qn1, qn2)
+    return (qn1.orbital != qn2.orbital) ? -t12 : 0.0
+end
+
+hopping_inter = generate_onebody(dofs, nn_bonds, inter_hopping;
+    order = (cdag, 1, c, 2))
+
+# ========================================
+# TWO-BODY INTERACTION TERMS
+# ========================================
+
+# Intra-orbital Coulomb: U n_{m↑} n_{m↓}
+function intra_coulomb(delta, qn1, qn2, qn3, qn4)
+    if (qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital &amp;&amp;
+        qn1.spin != qn2.spin)
+        return (qn1.orbital == 1) ? U1 : U2
+    end
+    return 0.0
+end
+
+coulomb_intra = generate_twobody(dofs, onsite_bonds, intra_coulomb;
+    order = (cdag, 1, c, 1, cdag, 2, c, 2))
+
+# Inter-orbital Coulomb: U&#39; n_{mσ} n_{m&#39;σ&#39;}
+function inter_coulomb(delta, qn1, qn2, qn3, qn4)
+    return (qn1.orbital != qn3.orbital) ? U_prime : 0.0
+end
+
+coulomb_inter = generate_twobody(dofs, onsite_bonds, inter_coulomb;
+    order = (cdag, 1, c, 1, cdag, 2, c, 2))
+
+# Hund&#39;s coupling and spin exchange
+hund_terms = generate_hund(dofs, onsite_bonds, J_H)
+
+# ========================================
+# Build Hamiltonians
+# ========================================
+hopping_terms = vcat(hopping_intra, hopping_inter)
+interaction_terms = vcat(coulomb_intra, coulomb_inter, hund_terms)
+
+H_onebody = build_onebody_matrix(dofs, hopping_terms)
+V_twobody = build_interaction_tensor(dofs, interaction_terms)
+
+# ========================================
+# Analysis
+# ========================================
+println(&quot;\n&quot; * &quot;=&quot;^70)
+println(&quot;Multi-Orbital Extended Hubbard Model&quot;)
+println(&quot;=&quot;^70)
+println(&quot;Parameters:&quot;)
+println(&quot;  t1 = $t1 eV, t2 = $t2 eV, t12 = $t12 eV&quot;)
+println(&quot;  U1 = $U1 eV, U2 = $U2 eV, U&#39; = $U_prime eV, J = $J_H eV&quot;)
+
+println(&quot;\nSystem properties:&quot;)
+println(&quot;  One-body terms: &quot;, length(hopping_terms))
+println(&quot;  Two-body terms: &quot;, length(interaction_terms))
+println(&quot;  Matrix size: &quot;, size(H_onebody))
+println(&quot;  Tensor size: &quot;, size(V_twobody))
+
+eigenvalues = eigvals(Hermitian(H_onebody))
+println(&quot;\nOne-body spectrum:&quot;)
+println(&quot;  Bandwidth: $(rd(maximum(real(eigenvalues)) - minimum(real(eigenvalues)))) eV&quot;)
+
+println(&quot;\nSample Hund&#39;s coupling terms:&quot;)
+display(hund_terms[1:min(4, length(hund_terms))])</code></pre><h3 id="Key-Features"><a class="docs-heading-anchor" href="#Key-Features">Key Features</a><a id="Key-Features-1"></a><a class="docs-heading-anchor-permalink" href="#Key-Features" title="Permalink"></a></h3><ol><li><strong>Orbital differentiation</strong>: Each orbital has distinct hopping and Coulomb U</li><li><strong>Hund&#39;s coupling</strong>: Favors high-spin configurations (parallel spins in different orbitals)</li><li><strong>Rich phase diagram</strong>: Competition between U, U&#39;, J drives various orders</li></ol><hr/><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>The <code>quantumsystem</code> module enables rapid construction of quantum many-body Hamiltonians:</p><p>✅ <strong>Flexible degrees of freedom</strong> - valleys, orbitals, sublattices, spins ✅ <strong>Complex parameters</strong> - direction-dependent phases, valley-dependent couplings ✅ <strong>Automatic sign handling</strong> - fermionic anticommutation built-in ✅ <strong>Topological models</strong> - Kane-Mele, Haldane, Chern insulators ✅ <strong>Strong correlations</strong> - Extended Hubbard, Hund&#39;s coupling</p><h3 id="Typical-Workflow"><a class="docs-heading-anchor" href="#Typical-Workflow">Typical Workflow</a><a id="Typical-Workflow-1"></a><a class="docs-heading-anchor-permalink" href="#Typical-Workflow" title="Permalink"></a></h3><ol><li>Define <code>SystemDofs</code> and <code>Lattice</code></li><li>Use <code>generate_onebody</code>/<code>generate_twobody</code> with value functions</li><li>Build matrices with <code>build_onebody_matrix</code>/<code>build_interaction_tensor</code></li><li>Solve using diagonalization, DMFT, ED, DMRG, etc.</li></ol><p>This framework accelerates research in twisted moiré materials, topological insulators, and strongly correlated systems!</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ul><li>Qiu, W.-X. &amp; Wu, F., <em>Topological magnons and domain walls in twisted bilayer MoTe₂</em>, Phys. Rev. B <strong>112</strong>, 085132 (2025)</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../hartreefock/">Hartree-Fock Approximation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Sunday 8 February 2026 14:34">Sunday 8 February 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
