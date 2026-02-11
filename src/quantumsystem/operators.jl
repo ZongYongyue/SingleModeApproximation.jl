@@ -124,9 +124,7 @@ function Base.show(io::IO, ::MIME"text/plain", ops::AbstractVector{<:Operators})
     n = length(ops)
     print(io, "Operators with ", n, n == 1 ? " term:" : " terms:")
 
-    # Show first few terms
-    max_show = min(n, 5)
-    for i in 1:max_show
+    for i in 1:n
         print(io, "\n  ")
         if i > 1
             # Add sign
@@ -137,9 +135,6 @@ function Base.show(io::IO, ::MIME"text/plain", ops::AbstractVector{<:Operators})
         show(io, ops[i])
     end
 
-    if n > max_show
-        print(io, "\n  ... and ", n - max_show, " more terms")
-    end
 end
 
 #==================== Reordering Algorithm (Internal) ====================#
@@ -197,15 +192,19 @@ Generate one-body terms from bonds.
 - `bonds::Vector{Bond}`: Two-site bonds from bonds() function
 - `value`: Coefficient, either:
   - `Number`: constant value for all internal DOF combinations
-  - `Function(delta, qn1, qn2) -> Number`: custom function
+  - `Function(delta, qn1, qn2) -> Number`: custom function used to constrain degrees of freedom.
 
 # Keyword Arguments
 - `order::Tuple`: Format `(op_type1, site1, op_type2, site2)`
   - Default: `(cdag, 1, c, 2)` for standard hopping c†[site1] c[site2]
+- `hc::Bool`: if add the H.C. parts in the terms
+
+# NOTICE
+  - All internal degrees of freedom are counted in a mixed manner if one does not constrain degrees of freedom!!!
 
 # Examples
 ```julia
-# Standard hopping: -t c†_i c_j
+# Standard hopping: -t c†_i c_j 
 ops = generate_onebody(dofs, nn_bonds, -1.0)
 
 # Spin-conserving hopping
@@ -217,7 +216,8 @@ function generate_onebody(
     dofs::SystemDofs,
     bonds::Vector{<:Bond},
     value::Union{Number, Function};
-    order::Tuple = (cdag, 1, c, 2)
+    order::Tuple = (cdag, 1, c, 2),
+    hc::Bool = true
 )
     @assert length(order) == 4 "order must have 4 elements: (op_type1, site1, op_type2, site2)"
     op_type1, site1, op_type2, site2 = order
@@ -242,6 +242,9 @@ function generate_onebody(
             v = value isa Number ? value : value(delta, qn1, qn2)
             if !iszero(v)
                 push!(result, Operators(v, [op_type1(qn1), op_type2(qn2)]))
+                if hc
+                    push!(result, Operators(conj(v), [op_type1(qn2), op_type2(qn1)]))
+                end
             end
         end
     end
@@ -259,30 +262,38 @@ Generate two-body interaction terms from bonds.
 - `bonds::Vector{Bond}`: Two-site bonds
 - `value`: Coefficient, either:
   - `Number`: constant for all combinations
-  - `Function(delta, qn1, qn2, qn3, qn4) -> Number`: custom function
+  - `Function(delta, qn1, qn2, qn3, qn4) -> Number`: custom function used to constrain degrees of freedom.
 
 # Keyword Arguments
 - `order::Tuple`: Format `(type1, site1, type2, site2, type3, site3, type4, site4)`
   - Default: `(cdag, 1, c, 1, cdag, 2, c, 2)` for density-density n_i n_j
 
+# NOTICE
+  - All internal degrees of freedom are counted in a mixed manner if one does not constrain degrees of freedom!!!
+
 # Examples
 ```julia
-# Density-density: V n_i n_j
+# nearest-neighbor Coulomb interaction: ∑_{all internal dofs} V n_i n_j
 ops = generate_twobody(dofs, nn_bonds, V)
 
-# Pair hopping: J c†_i↑ c†_i↓ c_j↓ c_j↑
-ops = generate_twobody(dofs, nn_bonds,
+# onsite Hubbard interaction: ∑_α U n_iα↑ n_iα↓
+ops = generate_twobody(dofs, onsite_bonds, 
     (delta, qn1, qn2, qn3, qn4) ->
-        qn1.spin == 1 && qn2.spin == 2 &&
-        qn3.spin == 2 && qn4.spin == 1 ? J : 0.0;
-    order = (cdag, 1, cdag, 1, c, 2, c, 2))
+        (qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital) &&
+        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U : 0.0
+    ,
+    order = (cdag, 1, c, 1, cdag, 1, c, 1)
+    )
 
-# Exchange: J c†_i↑ c_j↑ c†_j↓ c_i↓
-ops = generate_twobody(dofs, nn_bonds,
+# Pair hopping: ∑_{α≠β} J c†_iα↑ c†_iα↓ c_iβ↓ c_iβ↑
+ops = = generate_twobody(dofs, onsite_bonds, 
     (delta, qn1, qn2, qn3, qn4) ->
-        qn1.spin == 1 && qn2.spin == 1 &&
-        qn3.spin == 2 && qn4.spin == 2 ? J : 0.0;
-    order = (cdag, 1, c, 2, cdag, 2, c, 1))
+        (qn1.orbital, qn3.orbital) == (qn2.orbital, qn4.orbital) &&
+        (qn1.orbital !== qn3.orbital) &&
+        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,2,2,1) ? J : 0.0
+    ,
+    order = (cdag, 1, cdag, 1, c, 1, c, 1)
+    )
 ```
 """
 function generate_twobody(
@@ -299,10 +310,16 @@ function generate_twobody(
     result = Operators[]
 
     for bond in bonds
-        @assert length(bond.states) == 2 "Two-body generator requires 2-site bonds"
+        if length(bond.states) == 1 #onsite twobody term
+            s1, s2 = bond.states[1], bond.states[1]
+            delta = rd(bond.coordinates[1] .- bond.coordinates[1])
+        elseif length(bond.states) == 2 #different sites twobody term
+            s1, s2 = bond.states
+            delta = rd(bond.coordinates[2] .- bond.coordinates[1])
+        else
+            throw(ArgumentError("Not two-body interaction!"))
+        end
 
-        s1, s2 = bond.states
-        delta = rd(bond.coordinates[2] .- bond.coordinates[1])
         pos_keys = keys(s1)
 
         qn_at_site1 = [qn for qn in dofs.valid_states if all(qn[k] == s1[k] for k in pos_keys)]
@@ -320,66 +337,6 @@ function generate_twobody(
 
     return result
 end
-
-#==================== Convenience Generators ====================#
-
-"""
-    generate_coulomb_intra(dofs, bonds_onsite, U) -> Vector{Operators}
-
-Generate on-site Coulomb: U n_{i↑} n_{i↓}
-"""
-function generate_coulomb_intra(dofs::SystemDofs, bonds_onsite::Vector{<:Bond}, U::Number)
-    result = Operators[]
-
-    for bond in bonds_onsite
-        @assert length(bond.states) == 1 "On-site bonds must have 1 state"
-        site = bond.states[1]
-        pos_keys = keys(site)
-
-        for qn_up in dofs.valid_states
-            all(qn_up[k] == site[k] for k in pos_keys) && qn_up.spin == 1 || continue
-            for qn_dn in dofs.valid_states
-                all(qn_dn[k] == site[k] for k in pos_keys) && qn_dn.spin == 2 || continue
-                push!(result, Operators(U, [cdag(qn_up), c(qn_up), cdag(qn_dn), c(qn_dn)]))
-            end
-        end
-    end
-
-    return result
-end
-
-"""Generate inter-site Coulomb: V n_i n_j"""
-generate_coulomb_inter(dofs::SystemDofs, bonds::Vector{<:Bond}, V::Number) =
-    generate_twobody(dofs, bonds, V)
-
-"""Generate Hund's coupling: -J Σ_σ n_{iσ} n_{jσ}"""
-generate_hund(dofs::SystemDofs, bonds::Vector{<:Bond}, J::Number) =
-    generate_twobody(dofs, bonds,
-        (delta, qn1, qn2, qn3, qn4) -> qn1.spin == qn3.spin ? -J : 0.0)
-
-"""Generate Ising: J S^z_i S^z_j"""
-generate_ising(dofs::SystemDofs, bonds::Vector{<:Bond}, J::Number) =
-    generate_twobody(dofs, bonds,
-        (delta, qn1, qn2, qn3, qn4) -> begin
-            σ1, σ3 = qn1.spin - 1, qn3.spin - 1
-            J * (1 - 2*σ1) * (1 - 2*σ3) / 4
-        end)
-
-"""Generate exchange: J c†_{i↑} c_{j↑} c†_{j↓} c_{i↓}"""
-generate_exchange(dofs::SystemDofs, bonds::Vector{<:Bond}, J::Number) =
-    generate_twobody(dofs, bonds,
-        (delta, qn1, qn2, qn3, qn4) ->
-            qn1.spin == 1 && qn2.spin == 1 &&
-            qn3.spin == 2 && qn4.spin == 2 ? J : 0.0;
-        order = (cdag, 1, c, 2, cdag, 2, c, 1))
-
-"""Generate pair hopping: J c†_{i↑} c†_{i↓} c_{j↓} c_{j↑}"""
-generate_pair_hop(dofs::SystemDofs, bonds::Vector{<:Bond}, J::Number) =
-    generate_twobody(dofs, bonds,
-        (delta, qn1, qn2, qn3, qn4) ->
-            qn1.spin == 1 && qn2.spin == 2 &&
-            qn3.spin == 2 && qn4.spin == 1 ? J : 0.0;
-        order = (cdag, 1, cdag, 1, c, 2, c, 2))
 
 #==================== Matrix/Tensor Construction ====================#
 
@@ -410,7 +367,11 @@ function build_onebody_matrix(dofs::SystemDofs, ops::AbstractVector{<:Operators}
         H[i, j] += sign * op.value
     end
 
-    return H + H'
+    if !ishermitian(H)
+        throw(ArgumentError("H is not Hermitian"))
+    end
+
+    return H
 end
 
 """

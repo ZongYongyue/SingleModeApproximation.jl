@@ -53,8 +53,6 @@ export ndofs, total_dim, site_spin_system
 
 # Export operator generation functions
 export generate_onebody, generate_twobody
-export generate_coulomb_intra, generate_coulomb_inter
-export generate_hund, generate_ising, generate_exchange, generate_pair_hop
 
 # Export matrix/tensor builders
 export build_onebody_matrix, build_interaction_tensor

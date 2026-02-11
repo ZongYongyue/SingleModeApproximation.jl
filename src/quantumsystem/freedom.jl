@@ -131,81 +131,108 @@ end
 """
     SystemDofs{Q}
 
-Defines all degrees of freedom in the system, with optional constraints.
+Defines all degrees of freedom in the system, with optional constraints and custom ordering.
 
 # Type Parameter
 - `Q`: QuantumNumber type with DOF names as keys
 
 # Fields
 - `dofs::Vector{Dof}`: List of degrees of freedom
-- `valid_states::Vector{Q}`: All valid quantum number combinations
+- `valid_states::Vector{Q}`: All valid quantum number combinations (sorted)
+- `qn_to_idx::Dict{Q, Int}`: Fast O(1) lookup from quantum numbers to linear indices
+
+# Constructor
+```julia
+SystemDofs(dofs::Vector{Dof}; constraint=nothing, sortrule=collect(length(dofs):-1:1))
+```
+
+# Arguments
+- `dofs`: Vector of Dof specifications
+- `constraint`: Optional function `qn -> Bool` to filter valid states (not saved after construction)
+- `sortrule`: Vector of integers specifying sort priority (not saved after construction)
+  - Default: `[N, N-1, ..., 1]` (reverse order: first dof varies fastest)
+  - Elements are indices into `dofs` array
+  - Sorts by `dofs[sortrule[1]]` first, then `dofs[sortrule[2]]`, etc.
+
+# Design Rationale
+The default reverse order `[N, N-1, ..., 1]` ensures that the first DOF (typically site)
+varies fastest, making adjacent sites have adjacent linear indices, which is cache-friendly.
 
 # Examples
 ```julia
-# Simple system: site + spin (no constraint)
+# Example 1: Default ordering (reverse)
+dofs = SystemDofs([
+    Dof(:site, 3),
+    Dof(:spin, 2)
+])
+# sortrule = [2, 1] by default: spin varies slowest, site varies fastest
+# valid_states = [QN(site=1,spin=1), QN(site=2,spin=1), QN(site=3,spin=1),
+#                 QN(site=1,spin=2), QN(site=2,spin=2), QN(site=3,spin=2)]
+
+# Example 2: With constraint (spin-valley locking)
 dofs = SystemDofs([
     Dof(:site, 4),
-    Dof(:spin, 2, [:up, :down])
-])
-dofs.valid_states[1]  # QN(site=1, spin=1)
-dofs.valid_states[1].site  # 1
+    Dof(:spin, 2),
+    Dof(:valley, 2)
+], constraint = qn -> qn.spin == qn.valley)
 
-# With constraint: spin-valley locking
-constraint = qn -> (qn.spin == qn.valley)
+# Example 3: Custom sort order
 dofs = SystemDofs([
-    Dof(:moire_unitcell, 4),
-    Dof(:sublattice, 2),
-    Dof(:spin, 2, [:up, :down]),
-    Dof(:valley, 2, [:K, :Kprime])
-], constraint)
+    Dof(:moire_unitcell, 4),   # index 1
+    Dof(:sublattice, 2),        # index 2
+    Dof(:spin, 2),              # index 3
+    Dof(:valley, 2)             # index 4
+], sortrule = [4, 3, 2, 1])
+# Sorts by: valley → spin → sublattice → moire_unitcell (slow to fast)
+
+# Example 4: Forward ordering (first dof slowest)
+dofs = SystemDofs([
+    Dof(:site, 3),
+    Dof(:spin, 2)
+], sortrule = [1, 2])
+# valid_states = [QN(site=1,spin=1), QN(site=1,spin=2),
+#                 QN(site=2,spin=1), QN(site=2,spin=2), ...]
 ```
 """
 struct SystemDofs{Q<:QuantumNumber}
     dofs::Vector{Dof}
     valid_states::Vector{Q}
-
-    # Constructor without constraint
-    function SystemDofs(dofs::Vector{Dof})
-        names = Tuple(dof.name for dof in dofs)
-        Q = QuantumNumber{names, NTuple{length(dofs), Int}}
-        valid_states = Q[]
-        _enumerate_states!(valid_states, dofs, names, Int[], 1)
-        new{Q}(dofs, valid_states)
-    end
-
-    # Constructor with constraint
-    function SystemDofs(dofs::Vector{Dof}, constraint::Function)
-        names = Tuple(dof.name for dof in dofs)
-        Q = QuantumNumber{names, NTuple{length(dofs), Int}}
-        valid_states = Q[]
-        _enumerate_states!(valid_states, dofs, names, Int[], 1, constraint)
-        new{Q}(dofs, valid_states)
-    end
+    qn_to_idx::Dict{Q, Int}
 end
 
-# Helper: recursively enumerate states (without constraint)
-function _enumerate_states!(result::Vector{Q}, dofs::Vector{Dof}, names::Tuple,
-                            current::Vector{Int}, depth::Int) where {Q<:QuantumNumber}
-    if depth > length(dofs)
-        nt = NamedTuple{names}(Tuple(current))
-        push!(result, QuantumNumber(nt))
-        return
-    end
+# Constructor with keyword arguments
+function SystemDofs(
+    dofs::Vector{Dof};
+    constraint::Union{Nothing, Function} = nothing,
+    sortrule::Vector{Int} = collect(length(dofs):-1:1)
+)
+    # Validate sortrule
+    @assert length(sortrule) == length(dofs) "sortrule must have same length as dofs"
+    @assert sort(sortrule) == collect(1:length(dofs)) "sortrule must be a permutation of 1:$(length(dofs))"
 
-    for i in 1:dofs[depth].size
-        push!(current, i)
-        _enumerate_states!(result, dofs, names, current, depth + 1)
-        pop!(current)
-    end
+    # Generate all valid states
+    names = Tuple(dof.name for dof in dofs)
+    Q = QuantumNumber{names, NTuple{length(dofs), Int}}
+    valid_states = Q[]
+    _enumerate_states!(valid_states, dofs, names, Int[], 1, constraint)
+
+    # Sort according to sortrule
+    sort!(valid_states, by = qn -> tuple([qn[dofs[i].name] for i in sortrule]...))
+
+    # Build index lookup dictionary
+    qn_to_idx = Dict(qn => i for (i, qn) in enumerate(valid_states))
+
+    SystemDofs{Q}(dofs, valid_states, qn_to_idx)
 end
 
-# Helper: recursively enumerate states (with constraint)
+# Helper: recursively enumerate states (unified for with/without constraint)
 function _enumerate_states!(result::Vector{Q}, dofs::Vector{Dof}, names::Tuple,
-                            current::Vector{Int}, depth::Int, constraint::Function) where {Q<:QuantumNumber}
+                            current::Vector{Int}, depth::Int,
+                            constraint::Union{Nothing, Function}) where {Q<:QuantumNumber}
     if depth > length(dofs)
         nt = NamedTuple{names}(Tuple(current))
         qn = QuantumNumber(nt)
-        if constraint(qn)
+        if constraint === nothing || constraint(qn)
             push!(result, qn)
         end
         return
@@ -267,12 +294,10 @@ end
 Custom display for SystemDofs in REPL.
 """
 function Base.show(io::IO, dofs::SystemDofs)
-    n = ndofs(dofs)
-    dim = total_dim(dofs)
-    full_dim = prod(x.size for x in dofs.dofs)
-    constrained = dim < full_dim
+    n = length(dofs.dofs)
+    dim = length(dofs.valid_states)
 
-    println(io, "SystemDofs with $n degree(s) of freedom", constrained ? " (constrained)" : "", ":")
+    println(io, "SystemDofs with $n degree(s) of freedom:")
     for (i, dof) in enumerate(dofs.dofs)
         print(io, "  $i. $(dof.name): $(dof.size) states")
         if dof.labels !== nothing
@@ -280,7 +305,7 @@ function Base.show(io::IO, dofs::SystemDofs)
         end
         println(io)
     end
-    print(io, "Total Hilbert space dimension: $dim")
+    print(io, "Total dimension: $dim")
 end
 
 #==================== Quantum Number Index Functions ====================#
@@ -289,17 +314,18 @@ end
     qn2linear(dofs::SystemDofs, qn) -> Int
 
 Convert quantum numbers to linear index (position in valid_states).
-Accepts QuantumNumber, NamedTuple, or Tuple.
+Uses O(1) hash table lookup for fast performance.
+Accepts QuantumNumber or NamedTuple.
 
 # Examples
 ```julia
-dofs = site_spin_system(4)
-idx = qn2linear(dofs, QN(site=1, spin=2))  # returns 2
+dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2)])
+idx = qn2linear(dofs, QN(site=1, spin=2))  # O(1) lookup
 idx = qn2linear(dofs, (site=1, spin=2))    # also works
 ```
 """
 function qn2linear(dofs::SystemDofs, qn::QuantumNumber)
-    idx = findfirst(==(qn), dofs.valid_states)
+    idx = get(dofs.qn_to_idx, qn, nothing)
     if isnothing(idx)
         error("Quantum numbers $qn not in valid states")
     end

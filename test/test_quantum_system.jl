@@ -36,18 +36,33 @@ end
 end
 
 @testset "SystemDofs" begin
+    # Default ordering (reverse): spin varies slowest, site varies fastest
     dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2)])
     @test ndofs(dofs) == 2
     @test total_dim(dofs) == 8
     @test length(dofs.valid_states) == 8
+    # Default sortrule = [2, 1]: spin slow, site fast
     @test dofs.valid_states[1] == QN(site=1, spin=1)
-    @test dofs.valid_states[2] == QN(site=1, spin=2)
+    @test dofs.valid_states[2] == QN(site=2, spin=1)
+    @test dofs.valid_states[3] == QN(site=3, spin=1)
+    @test dofs.valid_states[5] == QN(site=1, spin=2)
 
     # With constraint
-    constrained = SystemDofs([Dof(:a, 2), Dof(:b, 2)], qn -> qn.a == qn.b)
+    constrained = SystemDofs([Dof(:a, 2), Dof(:b, 2)], constraint = qn -> qn.a == qn.b)
     @test total_dim(constrained) == 2
     @test constrained.valid_states[1] == QN(a=1, b=1)
     @test constrained.valid_states[2] == QN(a=2, b=2)
+
+    # Custom sortrule (forward order: site slow, spin fast)
+    forward = SystemDofs([Dof(:site, 3), Dof(:spin, 2)], sortrule = [1, 2])
+    @test forward.valid_states[1] == QN(site=1, spin=1)
+    @test forward.valid_states[2] == QN(site=1, spin=2)
+    @test forward.valid_states[3] == QN(site=2, spin=1)
+
+    # Test qn_to_idx dictionary
+    @test haskey(dofs.qn_to_idx, QN(site=1, spin=1))
+    @test dofs.qn_to_idx[QN(site=1, spin=1)] == 1
+    @test dofs.qn_to_idx[QN(site=2, spin=1)] == 2
 
     # Convenience constructors
     ss = site_spin_system(3)
@@ -57,13 +72,16 @@ end
 
 @testset "qn2linear and linear2qn" begin
     dofs = site_spin_system(4)
+    # site_spin_system uses default reverse ordering: spin slow, site fast
 
     @test qn2linear(dofs, QN(site=1, spin=1)) == 1
-    @test qn2linear(dofs, QN(site=1, spin=2)) == 2
-    @test qn2linear(dofs, QN(site=2, spin=1)) == 3
+    @test qn2linear(dofs, QN(site=2, spin=1)) == 2
+    @test qn2linear(dofs, QN(site=3, spin=1)) == 3
+    @test qn2linear(dofs, QN(site=4, spin=1)) == 4
+    @test qn2linear(dofs, QN(site=1, spin=2)) == 5
 
     # Accept NamedTuple
-    @test qn2linear(dofs, (site=1, spin=2)) == 2
+    @test qn2linear(dofs, (site=1, spin=2)) == 5
 
     # Round trip
     for i in 1:total_dim(dofs)
@@ -188,38 +206,40 @@ end
 
 @testset "build_onebody_matrix" begin
     dofs = site_spin_system(4)
+    # Default ordering: spin slow, site fast
+    # Index mapping: site=1,spin=1 -> 1, site=2,spin=1 -> 2, ..., site=1,spin=2 -> 5, ...
     qn1, qn2 = QN(site=1, spin=1), QN(site=2, spin=1)
 
-    # Only one direction needed - build_onebody_matrix returns H + H'
-    ops = [Operators(-1.0, cdag(qn1), c(qn2))]
+    ops = [Operators(-1.0, cdag(qn1), c(qn2)), Operators(-1.0, cdag(qn2), c(qn1))]
     H = build_onebody_matrix(dofs, ops)
 
     @test size(H) == (8, 8)
-    @test H[1, 3] == -1.0  # from term
-    @test H[3, 1] == -1.0  # from H'
+    @test H[1, 2] == -1.0  # qn1->1, qn2->2
+    @test H[2, 1] == -1.0  # H.c.
     @test ishermitian(H)
 
     # Complex value test
-    ops_c = [Operators(1.0 + 0.5im, cdag(qn1), c(qn2))]
+    ops_c = [Operators(1.0 + 0.5im, cdag(qn1), c(qn2)), Operators(conj(1.0 + 0.5im), cdag(qn2), c(qn1))]
     H_c = build_onebody_matrix(dofs, ops_c)
-    @test H_c[1, 3] == 1.0 + 0.5im
-    @test H_c[3, 1] == 1.0 - 0.5im  # conjugate
+    @test H_c[1, 2] == 1.0 + 0.5im
+    @test H_c[2, 1] == 1.0 - 0.5im  # conjugate
     @test ishermitian(H_c)
 end
 
 @testset "build_interaction_tensor" begin
     dofs = site_spin_system(4)
+    # Default ordering: spin slow, site fast
     # c†_1↑ c_2↑ c†_3↓ c_4↓  (in InterAll c†c c†c format)
     qn1 = QN(site=1, spin=1)  # site 1, spin up -> index 1
-    qn2 = QN(site=2, spin=1)  # site 2, spin up -> index 3
-    qn3 = QN(site=3, spin=2)  # site 3, spin down -> index 6
+    qn2 = QN(site=2, spin=1)  # site 2, spin up -> index 2
+    qn3 = QN(site=3, spin=2)  # site 3, spin down -> index 7
     qn4 = QN(site=4, spin=2)  # site 4, spin down -> index 8
     ops = [Operators(2.5, cdag(qn1), c(qn2), cdag(qn3), c(qn4))]
     V = build_interaction_tensor(dofs, ops)
 
     @test size(V) == (8, 8, 8, 8)
-    # (1,1)->1, (2,1)->3, (3,2)->6, (4,2)->8
-    @test V[1, 3, 6, 8] == 2.5
+    # New indices: (1,1)->1, (2,1)->2, (3,2)->7, (4,2)->8
+    @test V[1, 2, 7, 8] == 2.5
     @test count(!iszero, V) == 1
 end
 
@@ -241,8 +261,8 @@ end
     # Test 1: Constant hopping (all spin combinations)
     ops = generate_onebody(dofs, nn_bonds, -1.0)
     @test length(ops) > 0
-    # Each bond generates 4 terms (2 spins × 2 spins)
-    @test length(ops) == length(nn_bonds) * 4
+    # Each bond generates 4 terms (2 spins × 2 spins) and their H.C. terms.
+    @test length(ops) == length(nn_bonds) * 4 * 2
 
     H = build_onebody_matrix(dofs, ops)
     @test ishermitian(H)
@@ -250,8 +270,8 @@ end
     # Test 2: Spin-diagonal hopping
     ops_diag = generate_onebody(dofs, nn_bonds, (delta, qn1, qn2) ->
         qn1.spin == qn2.spin ? -1.0 : 0.0)
-    # Each bond generates 2 terms (only same-spin)
-    @test length(ops_diag) == length(nn_bonds) * 2
+    # Each bond generates 2 terms (only same-spin) and their H.C. terms.
+    @test length(ops_diag) == length(nn_bonds) * 2 * 2
 
     H_diag = build_onebody_matrix(dofs, ops_diag)
     @test ishermitian(H_diag)
@@ -269,54 +289,4 @@ end
         return delta[1] > 0 ? 1.0 : -1.0
     end)
     @test length(ops_dir) > 0
-end
-
-@testset "Convenience interaction generators" begin
-    # Create a 2x2 lattice with spin
-    unitcell = Lattice(
-        [Dof(:cell, 1), Dof(:sub, 2)],
-        [QN(cell=1, sub=1), QN(cell=1, sub=2)],
-        [[0.0, 0.0], [0.5, 0.0]]
-    )
-    lattice = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (2, 2))
-
-    # Full DOFs include spin
-    dofs = SystemDofs([Dof(:cell, 4), Dof(:sub, 2), Dof(:spin, 2)])
-
-    # Get bonds
-    onsite_bonds = bonds(lattice, (:p, :p), 0)
-    nn_bonds = bonds(lattice, (:p, :p), 1)
-
-    # Test CoulombIntra
-    ops_U = generate_coulomb_intra(dofs, onsite_bonds, 4.0)
-    @test length(ops_U) == 8  # 8 sites
-    V_U = build_interaction_tensor(dofs, ops_U)
-    @test size(V_U) == (16, 16, 16, 16)
-
-    # Test CoulombInter
-    ops_V = generate_coulomb_inter(dofs, nn_bonds, 1.0)
-    @test length(ops_V) > 0
-    V_inter = build_interaction_tensor(dofs, ops_V)
-    @test size(V_inter) == (16, 16, 16, 16)
-
-    # Test Hund
-    ops_hund = generate_hund(dofs, nn_bonds, 0.5)
-    @test length(ops_hund) > 0
-
-    # Test Ising
-    ops_ising = generate_ising(dofs, nn_bonds, 1.0)
-    @test length(ops_ising) > 0
-
-    # Test Exchange
-    ops_exchange = generate_exchange(dofs, nn_bonds, 0.5)
-    @test length(ops_exchange) > 0
-
-    # Test PairHop
-    ops_pair = generate_pair_hop(dofs, nn_bonds, 0.5)
-    @test length(ops_pair) > 0
-    # Pair hop stored as c†c†cc, reordering to c†c c†c happens in build_interaction_tensor
-    @test all(op.value == 0.5 for op in ops_pair)  # All positive at construction
-    # First two ops should be c† (dag=true), last two should be c (dag=false)
-    @test all(op.ops[1].dag == true && op.ops[2].dag == true for op in ops_pair)
-    @test all(op.ops[3].dag == false && op.ops[4].dag == false for op in ops_pair)
 end
