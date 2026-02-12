@@ -131,7 +131,7 @@ end
 """
     SystemDofs{Q}
 
-Defines all degrees of freedom in the system, with optional constraints and custom ordering.
+Defines all degrees of freedom in the system, with optional constraints, custom ordering, and symmetry blocks.
 
 # Type Parameter
 - `Q`: QuantumNumber type with DOF names as keys
@@ -139,6 +139,7 @@ Defines all degrees of freedom in the system, with optional constraints and cust
 # Fields
 - `dofs::Vector{Dof}`: List of degrees of freedom
 - `valid_states::Vector{Q}`: All valid quantum number combinations (sorted)
+- `blocks::Union{Nothing, Vector{UnitRange{Int}}}`: Index ranges for symmetry blocks (if any)
 - `qn_to_idx::Dict{Q, Int}`: Fast O(1) lookup from quantum numbers to linear indices
 
 # Constructor
@@ -149,66 +150,127 @@ SystemDofs(dofs::Vector{Dof}; constraint=nothing, sortrule=collect(length(dofs):
 # Arguments
 - `dofs`: Vector of Dof specifications
 - `constraint`: Optional function `qn -> Bool` to filter valid states (not saved after construction)
-- `sortrule`: Vector of integers specifying sort priority (not saved after construction)
-  - Default: `[N, N-1, ..., 1]` (reverse order: first dof varies fastest)
+- `sortrule`: Vector or nested vector specifying sort priority and blocking (not saved after construction)
+  - Default: `[N, N-1, ..., 1]` (reverse order: first dof varies fastest, no blocking)
   - Elements are indices into `dofs` array
-  - Sorts by `dofs[sortrule[1]]` first, then `dofs[sortrule[2]]`, etc.
+  - **Nested syntax for symmetry blocks**:
+    - `[4, 3, 2, 1]` - No blocking
+    - `[[4], 3, 2, 1]` - Block by 4th DOF (e.g., spin)
+    - `[[4, 3], 2, 1]` - Block by 4th DOF, then by 3rd within each block
+    - `[[4, 3, 2], 1]` - Block by 4th, 3rd, 2nd sequentially
 
 # Design Rationale
-The default reverse order `[N, N-1, ..., 1]` ensures that the first DOF (typically site)
-varies fastest, making adjacent sites have adjacent linear indices, which is cache-friendly.
+- Default reverse order ensures first DOF (typically site) varies fastest for cache-friendly access
+- Nested sortrule syntax naturally creates block-diagonal structure for conserved quantum numbers
+- Blocks enable efficient matrix operations (multiplication, diagonalization) by exploiting sparsity
 
 # Examples
 ```julia
-# Example 1: Default ordering (reverse)
+# Example 1: Default ordering (reverse, no blocks)
 dofs = SystemDofs([
     Dof(:site, 3),
     Dof(:spin, 2)
 ])
-# sortrule = [2, 1] by default: spin varies slowest, site varies fastest
+# sortrule = [2, 1]: spin slow, site fast
 # valid_states = [QN(site=1,spin=1), QN(site=2,spin=1), QN(site=3,spin=1),
 #                 QN(site=1,spin=2), QN(site=2,spin=2), QN(site=3,spin=2)]
+# blocks = nothing
 
-# Example 2: With constraint (spin-valley locking)
-dofs = SystemDofs([
-    Dof(:site, 4),
-    Dof(:spin, 2),
-    Dof(:valley, 2)
-], constraint = qn -> qn.spin == qn.valley)
-
-# Example 3: Custom sort order
-dofs = SystemDofs([
-    Dof(:moire_unitcell, 4),   # index 1
-    Dof(:sublattice, 2),        # index 2
-    Dof(:spin, 2),              # index 3
-    Dof(:valley, 2)             # index 4
-], sortrule = [4, 3, 2, 1])
-# Sorts by: valley → spin → sublattice → moire_unitcell (slow to fast)
-
-# Example 4: Forward ordering (first dof slowest)
+# Example 2: With symmetry blocks (spin conservation)
 dofs = SystemDofs([
     Dof(:site, 3),
     Dof(:spin, 2)
-], sortrule = [1, 2])
-# valid_states = [QN(site=1,spin=1), QN(site=1,spin=2),
-#                 QN(site=2,spin=1), QN(site=2,spin=2), ...]
+], sortrule = [[2], 1])
+# blocks = [1:3, 4:6]  (spin-up block, spin-down block)
+
+# Example 3: Nested blocks (spin and valley conservation)
+dofs = SystemDofs([
+    Dof(:site, 4),
+    Dof(:orbital, 2),
+    Dof(:spin, 2),
+    Dof(:valley, 2)
+], sortrule = [[4, 3], 2, 1])
+# blocks = [1:8, 9:16, 17:24, 25:32]  (K↑, K↓, K'↑, K'↓)
+
+# Example 4: With constraint
+dofs = SystemDofs([
+    Dof(:site, 4),
+    Dof(:spin, 2)
+], constraint = qn -> qn.site <= 2, sortrule = [[2], 1])
+# blocks = [1:2, 3:4]  (only first 2 sites, with spin blocks)
 ```
 """
 struct SystemDofs{Q<:QuantumNumber}
     dofs::Vector{Dof}
     valid_states::Vector{Q}
+    blocks::Union{Nothing, Vector{UnitRange{Int}}}
     qn_to_idx::Dict{Q, Int}
+end
+
+# Helper: Parse nested sortrule to extract blocking structure and flat order
+function _parse_sortrule(sortrule::AbstractVector)
+    flat_order = Int[]
+    block_dofs = Vector{Int}[]  # Each element is a group of DOFs that define a block level
+
+    for item in sortrule
+        if item isa AbstractVector
+            # Nested vector: defines blocking
+            push!(block_dofs, collect(Int, item))
+            append!(flat_order, item)
+        else
+            # Single integer: no blocking at this level
+            push!(flat_order, item)
+        end
+    end
+
+    return flat_order, block_dofs
+end
+
+# Helper: Generate blocks based on blocking DOFs
+function _generate_blocks(valid_states::Vector{Q}, dofs::Vector{Dof}, block_dofs::Vector{Vector{Int}}) where {Q<:QuantumNumber}
+    isempty(block_dofs) && return nothing
+
+    # Group states by the first level of blocking DOFs
+    first_block_dofs = block_dofs[1]
+    blocks = UnitRange{Int}[]
+
+    # Create a key for each state based on blocking DOFs
+    state_groups = Dict{Any, Vector{Int}}()
+    for (i, qn) in enumerate(valid_states)
+        key = tuple([qn[dofs[dof_idx].name] for dof_idx in first_block_dofs]...)
+        if !haskey(state_groups, key)
+            state_groups[key] = Int[]
+        end
+        push!(state_groups[key], i)
+    end
+
+    # Sort groups by their keys and create ranges
+    sorted_keys = sort(collect(keys(state_groups)))
+    for key in sorted_keys
+        indices = state_groups[key]
+        # Check that indices are contiguous
+        @assert indices == collect(minimum(indices):maximum(indices)) "Blocking structure requires contiguous indices. Check your sortrule."
+        push!(blocks, minimum(indices):maximum(indices))
+    end
+
+    # TODO: Handle nested blocking (block_dofs[2:end]) if needed
+    # For now, we only support one level of blocking
+
+    return blocks
 end
 
 # Constructor with keyword arguments
 function SystemDofs(
     dofs::Vector{Dof};
     constraint::Union{Nothing, Function} = nothing,
-    sortrule::Vector{Int} = collect(length(dofs):-1:1)
+    sortrule = collect(length(dofs):-1:1)  # Accept both Vector{Int} and nested vectors
 )
-    # Validate sortrule
-    @assert length(sortrule) == length(dofs) "sortrule must have same length as dofs"
-    @assert sort(sortrule) == collect(1:length(dofs)) "sortrule must be a permutation of 1:$(length(dofs))"
+    # Parse sortrule to get flat order and blocking structure
+    flat_order, block_dofs = _parse_sortrule(sortrule)
+
+    # Validate flat order
+    @assert length(flat_order) == length(dofs) "sortrule must cover all dofs"
+    @assert sort(flat_order) == collect(1:length(dofs)) "sortrule must be a permutation of 1:$(length(dofs))"
 
     # Generate all valid states
     names = Tuple(dof.name for dof in dofs)
@@ -216,13 +278,16 @@ function SystemDofs(
     valid_states = Q[]
     _enumerate_states!(valid_states, dofs, names, Int[], 1, constraint)
 
-    # Sort according to sortrule
-    sort!(valid_states, by = qn -> tuple([qn[dofs[i].name] for i in sortrule]...))
+    # Sort according to flat order
+    sort!(valid_states, by = qn -> tuple([qn[dofs[i].name] for i in flat_order]...))
+
+    # Generate blocks if blocking DOFs are specified
+    blocks = _generate_blocks(valid_states, dofs, block_dofs)
 
     # Build index lookup dictionary
     qn_to_idx = Dict(qn => i for (i, qn) in enumerate(valid_states))
 
-    SystemDofs{Q}(dofs, valid_states, qn_to_idx)
+    SystemDofs{Q}(dofs, valid_states, blocks, qn_to_idx)
 end
 
 # Helper: recursively enumerate states (unified for with/without constraint)
