@@ -1,3 +1,5 @@
+<img src="./docs/src/logo.png" width="200">
+
 # SingleModeApproximation.jl
 
 **SingleModeApproximation.jl** is a Julia package for studying quantum many-body systems using the single-mode approximation (SMA) method. It provides a complete workflow from constructing many-body Hamiltonians to calculating collective excitations such as magnons, excitons and so on.
