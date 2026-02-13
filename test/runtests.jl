@@ -13,8 +13,7 @@ using SafeTestsets
         include("test_quantum_system.jl")
     end
 
-    # Future test files can be added here:
-    # @safetestset "Hartree-Fock Solver" begin
-    #     include("test_hartreefock.jl")
-    # end
+    @safetestset "Hartree-Fock" begin
+        include("test_hartreefock.jl")
+    end
 end
