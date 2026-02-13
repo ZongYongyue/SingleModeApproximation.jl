@@ -1,4 +1,4 @@
-<img src="./docs/src/logo.png" width="200">
+<img src="./docs/src/logo.png" width="400">
 
 # SingleModeApproximation.jl
 
