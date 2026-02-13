@@ -15,6 +15,6 @@ using SafeTestsets
 
     # Future test files can be added here:
     # @safetestset "Hartree-Fock Solver" begin
-    #     include("test_hartreefork.jl")
+    #     include("test_hartreefock.jl")
     # end
 end

@@ -346,7 +346,6 @@ end
 Build Hermitian one-body Hamiltonian matrix from Operators.
 Each Operators must have exactly 2 FermionOp.
 Operators are reordered to c†c format internally.
-Returns H + H† to ensure Hermiticity.
 """
 function build_onebody_matrix(dofs::SystemDofs, ops::AbstractVector{<:Operators})
     isempty(ops) && error("Cannot build matrix from empty operators list")
