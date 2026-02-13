@@ -106,7 +106,7 @@ If you use this package in your research, please cite:
 
 ```bibtex
 @software{singlemodeapproximation,
-  author = {zongyy},
+  author = {Yong-Yue Zong},
   title = {SingleModeApproximation.jl: A Julia package for quantum many-body systems},
   year = {2025},
   url = {https://github.com/zongyy/SingleModeApproximation.jl}
