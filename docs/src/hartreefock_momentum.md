@@ -148,11 +148,21 @@ $$H^{F1} = -\frac{1}{2N}\sum_{abcd}\sum_{\mathbf{k}_2,\mathbf{q}} \tilde{W}^{abc
 
 $$H^{F2} = -\frac{1}{2N}\sum_{abcd}\sum_{\mathbf{k},\mathbf{q}} \tilde{W}^{abcd}(-\mathbf{q})\,G_{cb}(\mathbf{k}-\mathbf{q})\; c^\dagger_{\mathbf{k},a}\, c_{\mathbf{k},d}$$
 
-Collecting both Fock terms into the $c^\dagger_{\mathbf{k},a}c_{\mathbf{k},b}$ channel, the **Fock self-energy** is:
+Collecting both Fock terms into the $c^\dagger_{\mathbf{k},a}c_{\mathbf{k},b}$ channel:
 
-$$\boxed{\Sigma^F_{ab}(\mathbf{k}) = -\frac{1}{N}\sum_\mathbf{q}\sum_{cd}\, \mathcal{W}^{F}_{ab,cd}(\mathbf{q})\, G_{cd}(\mathbf{k}+\mathbf{q})}$$
+**From $H^{F1}$**: the remaining operator is $c^\dagger_{\mathbf{k},c}\,c_{\mathbf{k},b}$, so the channel indices are $a\leftarrow c$ (3rd position in $\tilde{W}$) and $b\leftarrow b$ (2nd position), while $a,d$ are summed via $G_{ad}$. Relabelling the internal summation $a\to c,\,d\to d$:
 
-where $\mathcal{W}^F_{ab,cd}(\mathbf{q})$ is the appropriate index contraction of $\tilde{W}^{abcd}(\mathbf{q})$ determined by the specific channel.
+$$\Sigma^{F1}_{ab}(\mathbf{k}) = -\frac{1}{2N}\sum_\mathbf{q}\sum_{cd}\tilde{W}^{cbad}(\mathbf{q})\,G_{cd}(\mathbf{k}+\mathbf{q})$$
+
+**From $H^{F2}$**: the remaining operator is $c^\dagger_{\mathbf{k},a}\,c_{\mathbf{k},d}$, so $a\leftarrow a$ (1st position) and $b\leftarrow d$ (4th position), while $b,c$ are summed via $G_{cb}$. Substituting $\mathbf{q}\to-\mathbf{q}$ to bring $G$ to $G(\mathbf{k}+\mathbf{q})$ form and swapping the dummy pair $b\leftrightarrow c$:
+
+$$\Sigma^{F2}_{ab}(\mathbf{k}) = -\frac{1}{2N}\sum_\mathbf{q}\sum_{cd}\tilde{W}^{adcb}(\mathbf{q})\,G_{cd}(\mathbf{k}+\mathbf{q})$$
+
+The **Fock self-energy** is:
+
+$$\boxed{\Sigma^F_{ab}(\mathbf{k}) = -\frac{1}{N}\sum_\mathbf{q}\sum_{cd}\,\frac{1}{2}\!\left[\tilde{W}^{cbad}(\mathbf{q}) + \tilde{W}^{adcb}(\mathbf{q})\right] G_{cd}(\mathbf{k}+\mathbf{q})}$$
+
+This is the exact analogue of the Hartree formula (Step 5): two symmetry-related permutations of $\tilde{W}$ appear, one from each Wick contraction.
 
 ### Convolution Structure and FFT Acceleration
 
@@ -160,11 +170,11 @@ The Fock self-energy is a **convolution in $\mathbf{k}$ space**: $\Sigma^F(\math
 
 $$\text{convolution in } \mathbf{k}\text{-space} \;\Longleftrightarrow\; \text{pointwise product in } \mathbf{r}\text{-space}$$
 
-$$\Sigma^F(\mathbf{k}) = -\mathcal{F}_{\mathbf{r}\to\mathbf{k}}\!\left[W(\mathbf{r})\cdot G(\mathbf{r})\right]$$
+$$[\Sigma^F(\mathbf{k})]_{ab} = -\mathcal{F}_{\mathbf{r}\to\mathbf{k}}\!\left[\sum_{cd}\frac{1}{2}\!\left[W^{cbad}(\mathbf{r})+W^{adcb}(\mathbf{r})\right] G_{cd}(\mathbf{r})\right]$$
 
 Concretely:
-1. Compute the pointwise product $W^{abcd}(\mathbf{r}) \cdot G_{cd}(\mathbf{r})$ in real space (with internal index contraction over $c,d$)
-2. Apply a single FFT
+1. Compute the combined interaction kernel $\frac{1}{2}[W^{cbad}(\mathbf{r})+W^{adcb}(\mathbf{r})]$ and contract with $G_{cd}(\mathbf{r})$ pointwise in real space (summing over $c,d$)
+2. Apply a single FFT to obtain $[\Sigma^F(\mathbf{k})]_{ab}$
 
 This reduces the naive $O(N^2)$ convolution to $O(N\log N)$.
 
