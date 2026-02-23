@@ -211,3 +211,266 @@ The original four-body interaction depending on three independent momenta has be
 5. **Update Green's function**: $G_{ab}(\mathbf{k}) = \sum_n v^*_{an}(\mathbf{k})\,f_{n\mathbf{k}}\,v_{bn}(\mathbf{k})$, then FFT to real space
 6. **Check convergence**: $\|G_{\text{new}} - G_{\text{old}}\| < \varepsilon$
 7. **Mix**: $G \leftarrow (1-\alpha)G_{\text{old}} + \alpha G_{\text{new}}$, go to step 2
+
+---
+---
+
+# Momentum-Space Hartree-Fock: Implementation
+
+This section describes how to implement the derivation above as a concrete algorithm. We follow the same logic as H-wave's `UHFk` solver, but abstract away specific data formats so that the procedure applies to any system with translational symmetry and arbitrary internal degrees of freedom.
+
+## Input Specification
+
+A momentum-space HF calculation requires three groups of inputs:
+
+### 1. Lattice and Unit Cell
+
+| Parameter | Meaning |
+|-----------|---------|
+| **Cell shape** $(L_x, L_y, L_z)$ | Total lattice size (number of unit cells along each direction) |
+| **Subcell shape** $(B_x, B_y, B_z)$ | Magnetic/modulated unit cell size (for symmetry breaking; $B=1$ if no enlargement) |
+| **Geometry** | Lattice vectors and atomic positions within the unit cell |
+
+The **effective k-grid** has $(N_x, N_y, N_z) = (L_x/B_x,\, L_y/B_y,\, L_z/B_z)$ points with $N_k = N_x N_y N_z$. The number of internal degrees of freedom per cell is $d = n_{\mathrm{orb}} \times B_x B_y B_z \times n_{\mathrm{spin}}$ (orbital count is multiplied by the subcell volume because the enlarged cell absorbs extra sites as internal degrees of freedom).
+
+**Example** (4×4 Hubbard model with 2×2 antiferromagnetic subcell):
+- Cell shape: $(4, 4, 1)$, Subcell shape: $(2, 2, 1)$
+- k-grid: $(2, 2, 1) \Rightarrow N_k = 4$
+- Original: 1 orbital, 2 spins → $d = 1 \times 4 \times 2 = 8$ internal DOFs per magnetic cell
+
+### 2. One-Body Terms: Hopping $T_{ab}(\mathbf{r})$
+
+The hopping integral between internal DOFs $a$ and $b$ separated by lattice vector $\mathbf{r}$. Stored as a real-space array:
+
+$$T_{ab}(\mathbf{r}), \qquad \mathbf{r} \in \{0, \ldots, N_x-1\} \times \{0, \ldots, N_y-1\} \times \{0, \ldots, N_z-1\}$$
+
+**Example** (square lattice nearest-neighbor hopping $t=1$):
+
+| $\mathbf{r}$ | $a$ | $b$ | $T_{ab}(\mathbf{r})$ |
+|:---:|:---:|:---:|:---:|
+| $(1,0,0)$ | 1 | 1 | $-1.0$ |
+| $(0,1,0)$ | 1 | 1 | $-1.0$ |
+| $(-1,0,0)$ | 1 | 1 | $-1.0$ |
+| $(0,-1,0)$ | 1 | 1 | $-1.0$ |
+
+### 3. Two-Body Terms: Interaction $W^{abcd}(\mathbf{r})$
+
+In practice, interactions are specified in terms of physically motivated types (Coulomb, Hund, Exchange, etc.), each of which maps to a specific pattern of $W^{abcd}$. To handle this efficiently, we decompose:
+
+$$W^{abcd}(\mathbf{r}) = \sum_\lambda J^\lambda_{ab}(\mathbf{r}) \cdot S^\lambda_{stuv}$$
+
+where $\lambda$ labels the interaction type, $J^\lambda_{ab}(\mathbf{r})$ encodes the orbital-spatial part (a 2-index interaction matrix at each $\mathbf{r}$), and $S^\lambda_{stuv}$ is a **spin table** that specifies which spin combinations contribute.
+
+| Type | Physical form | Non-zero $S_{stuv}$ |
+|------|-------------|---------------------|
+| CoulombIntra ($U$) | $U\,n_{a\uparrow}n_{a\downarrow}$ | $(0,1,1,0)$, $(1,0,0,1)$ |
+| CoulombInter ($V$) | $V\,n_{ia}n_{jb}$ | $(0,0,0,0)$, $(1,1,1,1)$, $(0,1,1,0)$, $(1,0,0,1)$ |
+| Hund ($J_H$) | $-J_H \mathbf{S}_a\cdot\mathbf{S}_b$ | $(0,0,0,0)$, $(1,1,1,1)$ |
+| Exchange ($J_{\mathrm{Ex}}$) | pair exchange | $(0,1,0,1)$, $(1,0,1,0)$ |
+
+**Symmetrization**: Each $J^\lambda_{ab}(\mathbf{r})$ must be symmetrized as $\tilde{J}^\lambda_{ab}(\mathbf{r}) = \frac{1}{2}\!\left[J^\lambda_{ab}(\mathbf{r}) + J^{\lambda*}_{ba}(-\mathbf{r})\right]$ before use, which absorbs both Hartree terms (or both Fock terms) into a single computation.
+
+---
+
+## Preprocessing (Performed Once)
+
+### Step A: Build $T(\mathbf{k})$ via FFT
+
+*→ Implements the kinetic term in the Step 7 table: $T(\mathbf{k}) = \sum_\mathbf{r} T^{ab}(\mathbf{r})\,e^{i\mathbf{k}\cdot\mathbf{r}}$.*
+
+Fourier-transform the real-space hopping to momentum space:
+
+$$T_{ab}(\mathbf{k}) = \sum_\mathbf{r} T_{ab}(\mathbf{r})\,e^{i\mathbf{k}\cdot\mathbf{r}}$$
+
+Computationally, this is a 3D FFT over the spatial indices $(r_x, r_y, r_z)$, applied independently for each pair $(a, b)$:
+
+```
+Input:  T_r[rx, ry, rz, a, b]     — real-space hopping
+Output: T_k[kx, ky, kz, a, b]     — momentum-space hopping
+Method: T_k = IFFT_3D(T_r, axes=(0,1,2), norm="forward")
+```
+
+If spin does not couple to the hopping (no spin-orbital interaction), the spin structure is trivially diagonal: $T(\mathbf{k})$ is block-diagonal with identical blocks for spin-up and spin-down.
+
+### Step B: Prepare Symmetrized Interactions
+
+*→ Absorbs the two-term structure of both the Hartree self-energy (Step 5: $[\tilde{W}^{ab,cd}(0) + \tilde{W}^{cd,ab}(0)]$) and the Fock self-energy (Step 6: $[\tilde{W}^{cbad}(\mathbf{q}) + \tilde{W}^{adcb}(\mathbf{q})]$) into a single symmetrized coefficient $\tilde{J}_{ab}(\mathbf{r})$, so each self-energy requires only one contraction instead of two.*
+
+For each interaction type $\lambda$:
+
+1. Load the real-space interaction matrix $J^\lambda_{ab}(\mathbf{r})$
+2. Construct the Hermitian-conjugated reverse: $J^\lambda_{ba}(-\mathbf{r})^*$
+3. Symmetrize: $\tilde{J}^\lambda_{ab}(\mathbf{r}) = \frac{1}{2}[J^\lambda_{ab}(\mathbf{r}) + J^{\lambda*}_{ba}(-\mathbf{r})]$
+4. Store the spin table $S^\lambda_{stuv}$
+
+After this step, we have a list of $\{(\tilde{J}^\lambda, S^\lambda)\}$ ready for the SCF loop.
+
+---
+
+## SCF Iteration (Repeated Until Convergence)
+
+At the start of each iteration, we have the current Green's function $G_{ab}(\mathbf{r})$ in real space (shape: $[N_k, d, d]$ where the first axis is the r-space index). The following steps update it.
+
+### Step 1: Construct $H^{\mathrm{eff}}(\mathbf{k})$
+
+*→ Implements Step 7: $H^{\text{eff}}(\mathbf{k}) = T(\mathbf{k}) + \Sigma^H + \Sigma^F(\mathbf{k})$.*
+
+Start from the pre-computed kinetic term:
+
+$$H(\mathbf{k}) = T(\mathbf{k})$$
+
+Then add the self-energy from each interaction type $\lambda$:
+
+**Hartree contribution** (k-independent):
+
+*→ Implements Step 5: $\Sigma^H_{ab} = \frac{1}{2}\sum_{cd}\left[\tilde{W}^{ab,cd}(0) + \tilde{W}^{cd,ab}(0)\right] G_{cd}^{(0)}$. The two-term sum $[\tilde{W}^{ab,cd}+\tilde{W}^{cd,ab}]$ is already encoded in the symmetrized $\tilde{J}$ (Step B). The density $G_{cd}^{(0)} = G_{cd}(\mathbf{r}=0)$ (Step 5) reduces to the on-site orbital-diagonal $G_{cc}(\mathbf{0})$ for density-density interactions.*
+
+The Hartree self-energy uses only the on-site ($\mathbf{r}=0$) diagonal of G:
+
+$$\Sigma^{H,\lambda}_{(s,a),(t,b)} = \delta_{ab} \sum_c \left[\sum_\mathbf{r} \tilde{J}^\lambda_{ac}(\mathbf{r})\right] \sum_{u,v} G_{cc}^{uv}(\mathbf{0})\, S^\lambda_{s,u,v,t}$$
+
+where $G_{cc}^{uv}(\mathbf{0})$ is the on-site orbital-diagonal density matrix with spin indices $(u,v)$.
+
+Concretely:
+```
+For each interaction type λ:
+    gbb[u,v,c]   = G[r=0, u, c, v, c]          # on-site, orbital-diagonal
+    hh0[s,t,c]   = sum_{u,v} gbb[u,v,c] * S[s,u,v,t]   # spin contraction
+    hh1[s,t,a]   = sum_c J_tilde[r,a,c] * hh0[s,t,c]    # interaction contraction, sum over r and c
+    Σ_H[s,a,t,b] = δ_{ab} * hh1[s,t,a]          # orbital-diagonal in output
+    H(k) += Σ_H   for all k                     # broadcast to all k-points
+```
+
+**Fock contribution** (k-dependent, via FFT):
+
+*→ Implements Step 6's convolution-theorem form: $[\Sigma^F(\mathbf{k})]_{ab} = -\mathcal{F}_{\mathbf{r}\to\mathbf{k}}\!\left[\sum_{cd}\frac{1}{2}[W^{cbad}(\mathbf{r})+W^{adcb}(\mathbf{r})] G_{cd}(\mathbf{r})\right]$. The two index permutations of $W$ are absorbed into $\tilde{J}$ (Step B). Note that $G_{cd}(\mathbf{r})$ appears as $G_{ba}(\mathbf{r})$ in the code because the orbital indices are transposed relative to the Hartree case (Step 6: cross-contraction $\mathcal{G}_3, \mathcal{G}_4$).*
+
+The Fock self-energy is computed as a pointwise product in real space followed by FFT:
+
+$$\Sigma^{F,\lambda}_{(s,a),(t,b)}(\mathbf{r}) = -\tilde{J}^\lambda_{ab}(\mathbf{r}) \sum_{u,v} G^{uv}_{ba}(\mathbf{r})\, S^\lambda_{s,u,t,v}$$
+
+$$\Sigma^{F,\lambda}(\mathbf{k}) = \mathrm{FFT}_{\mathbf{r}\to\mathbf{k}}\!\left[\Sigma^{F,\lambda}(\mathbf{r})\right]$$
+
+Concretely:
+```
+For each interaction type λ:
+    hh[r,s,a,t,b] = J_tilde[r,a,b] * sum_{u,v} G[r,u,b,v,a] * S[s,u,t,v]
+    Σ_F(k)        = FFT_3D(hh, axes=(0,1,2))
+    H(k) -= Σ_F(k)
+```
+
+Note the key difference: Hartree uses $G_{cc}(\mathbf{0})$ (on-site, orbital-diagonal) while Fock uses $G_{ba}(\mathbf{r})$ (off-site, orbital-transposed). Hartree is k-independent; Fock creates k-dependence through the FFT.
+
+### Step 2: Diagonalize
+
+*→ Implements SCF step 3: diagonalize $H^{\text{eff}}(\mathbf{k})\,v_{n\mathbf{k}} = \varepsilon_{n\mathbf{k}}\,v_{n\mathbf{k}}$ at each $\mathbf{k}$ independently. This is the central efficiency gain of Step 7: the four-body problem has been reduced to $N_k$ independent $d\times d$ eigenproblems.*
+
+Diagonalize $H^{\mathrm{eff}}(\mathbf{k})$ at each k-point to obtain eigenvalues and eigenvectors:
+
+$$H^{\mathrm{eff}}(\mathbf{k})\,|\psi_{n\mathbf{k}}\rangle = \varepsilon_{n\mathbf{k}}\,|\psi_{n\mathbf{k}}\rangle$$
+
+If total $S_z$ is conserved (no spin-orbit coupling or spin-flip interactions), $H(\mathbf{k})$ is block-diagonal in spin and can be diagonalized as two smaller $n_{\mathrm{orb}} \times n_{\mathrm{orb}}$ problems per k-point, rather than one $d \times d$ problem.
+
+### Step 3: Determine Occupation
+
+*→ Implements SCF step 4: determine $f_{n\mathbf{k}}$ — step function at $T=0$, Fermi-Dirac at $T>0$.*
+
+**At $T=0$**: fill the lowest $N_e$ states (summed over all k-points and spin blocks). The chemical potential $\mu$ lies in the gap between the $N_e$-th and $(N_e+1)$-th eigenvalue.
+
+**At $T>0$**: solve for the chemical potential $\mu$ such that:
+
+$$\sum_{n,\mathbf{k}} f(\varepsilon_{n\mathbf{k}}, \mu) = N_e, \qquad f(\varepsilon, \mu) = \frac{1}{1 + e^{(\varepsilon - \mu)/T}}$$
+
+This is a root-finding problem (bisection or Newton's method).
+
+### Step 4: Update Green's Function
+
+*→ Implements SCF step 5: $G_{ab}(\mathbf{k}) = \sum_n v^*_{an}(\mathbf{k})\,f_{n\mathbf{k}}\,v_{bn}(\mathbf{k})$. The subsequent IFFT gives the real-space $G_{ab}(\mathbf{r})$ needed by the Fock term (Step 6's convolution structure) in the next iteration.*
+
+Construct the new Green's function in k-space:
+
+$$G_{ab}^{\mathrm{new}}(\mathbf{k}) = \sum_n \psi^*_{na}(\mathbf{k})\,f_{n\mathbf{k}}\,\psi_{nb}(\mathbf{k})$$
+
+Then inverse-FFT to real space:
+
+$$G_{ab}(\mathbf{r}) = \mathrm{FFT}_{\mathbf{k}\to\mathbf{r}}\!\left[G_{ab}(\mathbf{k})\right]$$
+
+This real-space $G(\mathbf{r})$ is needed for the Fock term in the next iteration.
+
+### Step 5: Calculate Total Energy
+
+*→ The band energy $E_{\mathrm{band}} = \sum_{n\mathbf{k}} f_{n\mathbf{k}}\,\varepsilon_{n\mathbf{k}}$ counts each occupied level once. However, $\varepsilon_{n\mathbf{k}}$ already includes the mean-field self-energy $\Sigma^H + \Sigma^F$, so summing eigenvalues double-counts the interaction energy. The interaction energy correction $E_{\mathrm{int}}$ removes this double-count. This double-counting issue arises because the HF Hamiltonian (Step 7) treats the interaction at the mean-field level, not at the full two-body level.*
+
+**Band energy** (at $T=0$):
+
+$$E_{\mathrm{band}} = \sum_{n,\mathbf{k}} f_{n\mathbf{k}}\,\varepsilon_{n\mathbf{k}}$$
+
+At $T>0$, the free energy is:
+
+$$\Omega_{\mathrm{band}} = \mu N_e - T \sum_{n,\mathbf{k}} \ln\!\left(1 + e^{-(\varepsilon_{n\mathbf{k}} - \mu)/T}\right)$$
+
+**Interaction energy** (subtract double-counted mean-field):
+
+For each interaction type $\lambda$:
+
+$$E^{\lambda}_{\mathrm{int}} = -\frac{N_k}{2} \sum_\mathbf{r} \sum_{ab} \tilde{J}^\lambda_{ab}(\mathbf{r}) \left[\sum_{stuv} S^\lambda_{stuv}\,G^{va}_{sa}(\mathbf{0})\,G^{ub}_{tb}(\mathbf{0}) \;-\; \sum_{stuv} S^\lambda_{stuv}\,G^{ub}_{sa}(\mathbf{r})\,G^{va}_{tb}(\mathbf{r})\right]$$
+
+The first term is the Hartree double-count (on-site), the second is the Fock double-count (all r).
+
+**Total energy**: $E_{\mathrm{total}} = E_{\mathrm{band}} + \sum_\lambda E^\lambda_{\mathrm{int}}$
+
+### Step 6: Check Convergence and Mix
+
+*→ Implements SCF steps 6 and 7: check $\|G_{\mathrm{new}} - G_{\mathrm{old}}\| < \varepsilon$, then mix $G \leftarrow (1-\alpha)G_{\mathrm{old}} + \alpha G_{\mathrm{new}}$ and return to Step 1.*
+
+Compute the residual:
+
+$$\mathrm{rest} = \frac{\|G_{\mathrm{new}} - G_{\mathrm{old}}\|}{\mathrm{size}(G)}$$
+
+If $\mathrm{rest} < \varepsilon$, the calculation has converged. Otherwise, mix and return to Step 1:
+
+$$G \leftarrow (1 - \alpha)\,G_{\mathrm{old}} + \alpha\,G_{\mathrm{new}}$$
+
+More advanced mixing strategies (DIIS, Broyden, scheduled mixing) can be used to improve convergence stability.
+
+---
+
+## Summary: Complete Algorithm
+
+```
+PREPROCESSING (once):
+  A. T(k) = FFT[ T(r) ]                         — kinetic energy in k-space
+  B. {J̃_λ(r), S_λ} = symmetrize interactions    — interaction coefficients
+
+INITIALIZE:
+  G(r) = random / zero / from previous calculation
+
+SCF LOOP:
+  ┌─ 1. Build H(k):
+  │     H(k) = T(k)
+  │     For each interaction λ:
+  │       H(k) += Σ_H[λ]           ← k-independent, from G(r=0) diagonal
+  │       H(k) -= FFT[ J̃(r)·G(r) ] ← k-dependent Fock term
+  │
+  ├─ 2. Diagonalize H(k) → {ε_nk, ψ_nk}
+  │
+  ├─ 3. Find μ, determine occupation f_nk
+  │
+  ├─ 4. G_new(k) = Σ_n ψ*ψ f_nk ;  G_new(r) = IFFT[ G_new(k) ]
+  │
+  ├─ 5. E_total = E_band + E_int
+  │
+  └─ 6. Converged? → done
+         Not converged? → G = mix(G_old, G_new), go to 1
+```
+
+### Computational Complexity per SCF Iteration
+
+| Operation | Cost | Note |
+|-----------|------|------|
+| Hartree self-energy | $O(N_k \cdot d)$ | Only r=0, orbital-diagonal |
+| Fock self-energy | $O(N_k \log N_k \cdot d^2)$ | FFT over k-grid |
+| Diagonalization | $O(N_k \cdot d^3)$ | Dominates for large d |
+| Green's function update | $O(N_k \cdot d^2)$ | Matrix multiply + FFT |
+
+The total cost per iteration scales as $O(N_k \cdot d^3)$, compared with $O(N^3)$ for real-space HF where $N = N_k \cdot d$. For large systems with small unit cells ($N_k \gg d$), the momentum-space method is dramatically cheaper.
