@@ -3,7 +3,7 @@ Graphene band structure benchmark.
 
 Reproduces the two calculations from TightBindingApproximation.jl docs
 (https://quantum-many-body.github.io/TightBindingApproximation.jl/dev/examples/Graphene/)
-using build_tk from SingleModeApproximation.jl:
+using build_tk from MeanFieldTheories.jl:
 
   1. 2D graphene: energy bands along Γ-K-M-Γ (Dirac cones at K)
   2. Zigzag cylinder (1 × Ny, open y): edge states in the flat-band window
@@ -16,7 +16,7 @@ using LinearAlgebra
 import Pkg
 Pkg.activate(@__DIR__)
 
-using SingleModeApproximation
+using MeanFieldTheories
 using Plots
 
 # ── Lattice geometry ──────────────────────────────────────────────────────────

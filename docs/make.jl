@@ -1,14 +1,14 @@
 using Documenter
-using SingleModeApproximation
+using MeanFieldTheories
 
 makedocs(;
-    modules=[SingleModeApproximation],
+    modules=[MeanFieldTheories],
     authors="zongyy",
-    repo="https://github.com/zongyy/SingleModeApproximation.jl/blob/{commit}{path}#{line}",
-    sitename="SingleModeApproximation.jl",
+    repo="https://github.com/zongyy/MeanFieldTheories.jl/blob/{commit}{path}#{line}",
+    sitename="MeanFieldTheories.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://zongyy.github.io/SingleModeApproximation.jl",
+        canonical="https://zongyy.github.io/MeanFieldTheories.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -26,7 +26,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/ZongYongyue/SingleModeApproximation.jl",
+    repo="github.com/ZongYongyue/MeanFieldTheories.jl",
     devbranch="main",
     push_preview=true,
 )

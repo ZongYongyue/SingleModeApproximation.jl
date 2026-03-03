@@ -15,7 +15,7 @@ println("Installing/updating dependencies...")
 Pkg.instantiate()
 
 # Add parent package in development mode
-println("Adding SingleModeApproximation package...")
+println("Adding MeanFieldTheories package...")
 parent_dir = dirname(@__DIR__)
 Pkg.develop(path=parent_dir)
 

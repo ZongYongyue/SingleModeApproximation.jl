@@ -12,7 +12,7 @@ using Printf
 
 # Add parent directory to load path
 push!(LOAD_PATH, joinpath(@__DIR__, ".."))
-using SingleModeApproximation
+using MeanFieldTheories
 
 #==================== Direct U Matrix Construction Test ====================#
 

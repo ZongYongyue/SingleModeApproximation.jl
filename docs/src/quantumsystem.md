@@ -24,7 +24,7 @@ This tutorial demonstrates how to use the module through two cutting-edge exampl
 Quantum numbers are represented as named tuples that index the Hilbert space. The `SystemDofs` structure defines all quantum degrees of freedom:
 
 ```julia
-using SingleModeApproximation
+using MeanFieldTheories
 
 # Example: System with site, sublattice, and valley
 dofs = SystemDofs(
@@ -169,7 +169,7 @@ This is a **generalized Kane-Mele model** - two copies of time-reversal partner 
 ### Implementation
 
 ```julia
-using SingleModeApproximation
+using MeanFieldTheories
 using LinearAlgebra
 
 # ========================================
@@ -461,7 +461,7 @@ where:
 ### Implementation
 
 ```julia
-using SingleModeApproximation
+using MeanFieldTheories
 using LinearAlgebra
 
 # ========================================

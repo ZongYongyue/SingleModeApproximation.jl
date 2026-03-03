@@ -1,8 +1,8 @@
-<img src="https://raw.githubusercontent.com/ZongYongyue/SingleModeApproximation.jl/main/docs/src/logo.png" width="400">
+<img src="https://raw.githubusercontent.com/ZongYongyue/MeanFieldTheories.jl/main/docs/src/logo.png" width="400">
 
-# SingleModeApproximation.jl
+# MeanFieldTheories.jl
 
-**SingleModeApproximation.jl** is a Julia package for studying quantum many-body systems using the single-mode approximation (SMA) method. It provides a complete workflow from constructing many-body Hamiltonians to calculating collective excitations such as magnons, excitons and so on.
+**MeanFieldTheories.jl** is a Julia package for studying quantum many-body systems using the single-mode approximation (SMA) method. It provides a complete workflow from constructing many-body Hamiltonians to calculating collective excitations such as magnons, excitons and so on.
 
 ## Overview
 
@@ -14,7 +14,7 @@ The package implements a systematic approach to quantum many-body problems:
 
 This workflow follows the standard approach used in modern condensed matter physics, as exemplified in studies of topological magnons, spin-wave excitations, and collective modes in quantum materials.
 
-See documents: https://zongyongyue.github.io/SingleModeApproximation.jl
+See documents: https://zongyongyue.github.io/MeanFieldTheories.jl
 
 ## The Single-Mode Approximation Method
 
@@ -54,20 +54,20 @@ For example, in the context of twisted bilayer MoTe₂, the workflow proceeds as
 
 ```julia
 using Pkg
-Pkg.add("SingleModeApproximation")
+Pkg.add("MeanFieldTheories")
 ```
 
 Or for development:
 
 ```julia
 using Pkg
-Pkg.develop(url="https://github.com/zongyy/SingleModeApproximation.jl")
+Pkg.develop(url="https://github.com/zongyy/MeanFieldTheories.jl")
 ```
 
 ## Quick Start
 
 ```julia
-using SingleModeApproximation
+using MeanFieldTheories
 
 # Define system with 4 sites and spin
 dofs = SystemDofs(site=1:4, spin=[:up, :dn])
@@ -107,15 +107,15 @@ If you use this package in your research, please cite:
 ```bibtex
 @software{singlemodeapproximation,
   author = {Yong-Yue Zong},
-  title = {SingleModeApproximation.jl: A Julia package for quantum many-body systems},
+  title = {MeanFieldTheories.jl: A Julia package for quantum many-body systems},
   year = {2025},
-  url = {https://github.com/zongyy/SingleModeApproximation.jl}
+  url = {https://github.com/zongyy/MeanFieldTheories.jl}
 }
 ```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests on [GitHub](https://github.com/zongyy/SingleModeApproximation.jl).
+Contributions are welcome! Please feel free to submit issues or pull requests on [GitHub](https://github.com/zongyy/MeanFieldTheories.jl).
 
 ## License
 

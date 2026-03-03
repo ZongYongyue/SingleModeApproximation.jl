@@ -4,7 +4,7 @@ Tests for Quantum System (quantum_system.jl)
 
 using Test
 using LinearAlgebra
-using SingleModeApproximation
+using MeanFieldTheories
 
 @testset "QuantumNumber" begin
     qn = QN(site=1, spin=2)

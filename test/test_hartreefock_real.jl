@@ -5,7 +5,7 @@ Tests for Hartree-Fock module (groundstate/hartreefock_real.jl)
 using Test
 using LinearAlgebra
 using SparseArrays
-using SingleModeApproximation
+using MeanFieldTheories
 
 @testset "build_t_matrix" begin
     # Setup a simple 2-site, 2-spin system

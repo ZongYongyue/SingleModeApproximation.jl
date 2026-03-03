@@ -1,7 +1,7 @@
 """
-    SingleModeApproximation
+    MeanFieldTheories
 
-A Julia package for quantum many-body systems using single-mode approximation methods.
+A Julia package for quantum many-body systems using mean-field theory methods.
 
 This package provides tools for:
 - Defining quantum systems with arbitrary degrees of freedom
@@ -17,7 +17,7 @@ This package provides tools for:
 
 # Example
 ```julia
-using SingleModeApproximation
+using MeanFieldTheories
 
 # Define system
 dofs = SystemDofs(site=1:4, spin=[:up, :dn])
@@ -31,7 +31,7 @@ hopping = generate_onebody(dofs, bonds, -1.0).ops
 H = build_onebody_matrix(dofs, hopping)
 ```
 """
-module SingleModeApproximation
+module MeanFieldTheories
 
 # Export quantum system functionality
 include("quantumsystem/freedom.jl")
@@ -68,4 +68,4 @@ export build_tk
 # Export utility constants
 export PRECISION, rd
 
-end # module SingleModeApproximation
+end # module MeanFieldTheories
