@@ -7,7 +7,7 @@ using LinearAlgebra
 using SparseArrays
 using MeanFieldTheories
 
-@testset "build_T_matrix" begin
+@testset "build_T" begin
     # Setup a simple 2-site, 2-spin system
     dofs = SystemDofs([Dof(:site, 2), Dof(:spin, 2)], sortrule = [[2], 1])
     N = total_dim(dofs)  # Should be 4
@@ -21,7 +21,7 @@ using MeanFieldTheories
     t_ops = generate_onebody(dofs, nn_bonds, -1.0).ops
 
     @testset "Basic functionality" begin
-        t_matrix = build_T_matrix(dofs, t_ops)
+        t_matrix = build_T(dofs, t_ops)
 
         @test size(t_matrix) == (N, N)
         @test t_matrix isa SparseMatrixCSC
@@ -35,8 +35,8 @@ using MeanFieldTheories
         # Create dofs without explicit blocks (single block)
         dofs_no_block = SystemDofs([Dof(:site, 2), Dof(:spin, 2)])
 
-        t_with_blocks = build_T_matrix(dofs_blocked, t_ops)
-        t_without_blocks = build_T_matrix(dofs_no_block, t_ops)
+        t_with_blocks = build_T(dofs_blocked, t_ops)
+        t_without_blocks = build_T(dofs_no_block, t_ops)
 
         # With explicit blocks should have same or fewer non-zeros (t is block-diagonal)
         @test nnz(t_with_blocks) <= nnz(t_without_blocks)
@@ -53,18 +53,18 @@ using MeanFieldTheories
     @testset "Consistency with dense version" begin
         # Use dofs without blocks so no filtering occurs; both functions must agree.
         dofs_no_block = SystemDofs([Dof(:site, 2), Dof(:spin, 2)])
-        t_sparse = build_T_matrix(dofs_no_block, t_ops)
+        t_sparse = build_T(dofs_no_block, t_ops)
         t_dense = build_onebody_matrix(dofs_no_block, t_ops)
 
         @test Matrix(t_sparse) ≈ t_dense
     end
 
     @testset "Error handling" begin
-        @test_throws ErrorException build_T_matrix(dofs, Operators[])
+        @test_throws ErrorException build_T(dofs, Operators[])
     end
 end
 
-@testset "build_U_matrix" begin
+@testset "build_U" begin
     # Setup a simple 2-site, 2-spin system
     dofs = SystemDofs([Dof(:site, 2), Dof(:spin, 2)], sortrule = [[2], 1])
     N = total_dim(dofs)  # Should be 4
@@ -82,7 +82,7 @@ end
         order = (cdag, 1, c, 1, cdag, 1, c, 1))
 
     @testset "Basic functionality" begin
-        U_matrix = build_U_matrix(dofs, U_ops)
+        U_matrix = build_U(dofs, U_ops)
 
         @test size(U_matrix) == (N^2, N^2)
         @test U_matrix isa SparseMatrixCSC
@@ -96,8 +96,8 @@ end
         # Create dofs without explicit blocks (single block)
         dofs_no_block = SystemDofs([Dof(:site, 2), Dof(:spin, 2)])
 
-        U_with_blocks = build_U_matrix(dofs_blocked, U_ops)
-        U_without_blocks = build_U_matrix(dofs_no_block, U_ops)
+        U_with_blocks = build_U(dofs_blocked, U_ops)
+        U_without_blocks = build_U(dofs_no_block, U_ops)
 
         # With explicit blocks should have fewer or equal non-zeros
         @test nnz(U_with_blocks) <= nnz(U_without_blocks)
@@ -105,7 +105,7 @@ end
 
     @testset "Consistency with V tensor method" begin
         # Use dofs without blocks so all Hartree+Fock contributions are included;
-        # the reference formula and build_U_matrix must then agree exactly.
+        # the reference formula and build_U must then agree exactly.
         dofs_no_block = SystemDofs([Dof(:site, 2), Dof(:spin, 2)])
         V = build_interaction_tensor(dofs_no_block, U_ops)
 
@@ -115,13 +115,13 @@ end
             U_ref[i,j,k,l] = V[i,j,k,l] + V[k,l,i,j] - V[k,j,i,l] - V[i,l,k,j]
         end
 
-        U_matrix = build_U_matrix(dofs_no_block, U_ops)
+        U_matrix = build_U(dofs_no_block, U_ops)
 
         @test Matrix(U_matrix) ≈ reshape(U_ref, N^2, N^2)
     end
 
     @testset "Error handling" begin
-        @test_throws ErrorException build_U_matrix(dofs, Operators[])
+        @test_throws ErrorException build_U(dofs, Operators[])
     end
 end
 
