@@ -26,13 +26,38 @@ c^\dagger_{i\alpha} = \frac{1}{\sqrt{N}}\sum_{\mathbf{k}} e^{-i\mathbf{k}\cdot\m
 
 ### 2.2 Translational Invariance
 
-Since $w_{i\alpha}(\mathbf{r}) = w_\alpha(\mathbf{r}-\mathbf{R}_i)$, the matrix element depends only on three relative displacements. Taking $\mathbf{R}_l$ as the reference site, define
+Substituting $w_{i\alpha}(\mathbf{r}) = w_\alpha(\mathbf{r}-\mathbf{R}_i)$ into the matrix element gives
+
+$$V^{abcd}_{ijkl} = \iint d\mathbf{r}_1\,d\mathbf{r}_2\;
+w^*_a(\mathbf{r}_1-\mathbf{R}_i)\,w_b(\mathbf{r}_1-\mathbf{R}_j)\,
+\frac{e^2}{|\mathbf{r}_1-\mathbf{r}_2|}\,
+w^*_c(\mathbf{r}_2-\mathbf{R}_k)\,w_d(\mathbf{r}_2-\mathbf{R}_l)$$
+
+Taking $\mathbf{R}_l$ as the reference site, perform the change of integration variables $\mathbf{r}_1 \to \mathbf{r}_1 + \mathbf{R}_l$, $\mathbf{r}_2 \to \mathbf{r}_2 + \mathbf{R}_l$. The Coulomb kernel $|\mathbf{r}_1 - \mathbf{r}_2|^{-1}$ is invariant under simultaneous translation, and the Jacobian is unity, so
+
+$$V^{abcd}_{ijkl} = \iint d\mathbf{r}_1\,d\mathbf{r}_2\;
+w^*_a\!\left(\mathbf{r}_1-(\mathbf{R}_i-\mathbf{R}_l)\right)\,
+w_b\!\left(\mathbf{r}_1-(\mathbf{R}_j-\mathbf{R}_l)\right)\,
+\frac{e^2}{|\mathbf{r}_1-\mathbf{r}_2|}\,
+w^*_c\!\left(\mathbf{r}_2-(\mathbf{R}_k-\mathbf{R}_l)\right)\,
+w_d(\mathbf{r}_2)$$
+
+The result depends on $i,j,k,l$ only through the three relative displacements
 
 $$\boldsymbol{\tau}_1 = \mathbf{R}_i - \mathbf{R}_l, \quad
 \boldsymbol{\tau}_2 = \mathbf{R}_j - \mathbf{R}_l, \quad
 \boldsymbol{\tau}_3 = \mathbf{R}_k - \mathbf{R}_l$$
 
-Writing $\bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3) \equiv V^{abcd}_{ijkl}$, the Hamiltonian becomes
+so we define
+
+$$\bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3)
+\equiv \iint d\mathbf{r}_1\,d\mathbf{r}_2\;
+w^*_a(\mathbf{r}_1-\boldsymbol{\tau}_1)\,w_b(\mathbf{r}_1-\boldsymbol{\tau}_2)\,
+\frac{e^2}{|\mathbf{r}_1-\mathbf{r}_2|}\,
+w^*_c(\mathbf{r}_2-\boldsymbol{\tau}_3)\,w_d(\mathbf{r}_2)
+= V^{abcd}_{ijkl}$$
+
+The Hamiltonian becomes
 
 $$H_{\text{int}} = \frac{1}{2}\sum_l\sum_{\boldsymbol{\tau}_1\boldsymbol{\tau}_2\boldsymbol{\tau}_3}\sum_{abcd}
 \bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3)\,
