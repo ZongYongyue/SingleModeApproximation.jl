@@ -1,5 +1,5 @@
 ```@raw html
-<img src="https://raw.githubusercontent.com/ZongYongyue/MeanFieldTheories.jl/main/docs/src/logo.png" width="400">
+<img src="https://raw.githubusercontent.com/ZongYongyue/MeanFieldTheories.jl/main/docs/src/logo.png" width="300">
 ```
 
 # MeanFieldTheories.jl
