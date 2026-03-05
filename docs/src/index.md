@@ -1,4 +1,6 @@
-![MeanFieldTheories.jl Logo](assets/logo.png)
+```@raw html
+<img src="https://raw.githubusercontent.com/ZongYongyue/MeanFieldTheories.jl/main/docs/src/logo.png" width="400">
+```
 
 # MeanFieldTheories.jl
 
