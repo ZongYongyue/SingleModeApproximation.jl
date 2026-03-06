@@ -1,607 +1,402 @@
-# Quantum System Tutorial
+# Quantum System
 
-## Introduction
+The `quantumsystem` module provides a flexible, general-purpose framework for constructing quantum many-body Hamiltonians. It is organized around three levels that follow a natural physical hierarchy:
 
-The `quantumsystem` module provides a flexible framework for constructing quantum many-body Hamiltonians in Julia. It is designed to:
+**Degrees of freedom → Lattice → Operators**
 
-- Define quantum systems with arbitrary degrees of freedom (spin, orbital, sublattice, valley, etc.)
-- Construct lattice structures with various geometries (square, honeycomb, triangular, etc.)
-- Generate operator terms using symbolic notation with flexible orderings
-- Build matrix and tensor representations for numerical calculations
-- Automatically handle fermionic anticommutation relations and operator reordering
-
-This tutorial demonstrates how to use the module through two cutting-edge examples from recent literature:
-
-1. **Twisted bilayer MoTe₂ Kane-Mele model** (2025): A tight-binding model with topological bands and valley-dependent complex hopping
-2. **Multi-orbital extended Hubbard model**: Including Hund's coupling, pair hopping, and orbital-dependent interactions
+Each level is deliberately general: no restrictions are imposed on the number or nature of quantum numbers, the geometry of the lattice, or the form of operator terms. Physical constraints are enforced entirely through user-supplied functions, without modifying the library.
 
 ---
 
-## Core Concepts
+## 1. Degrees of Freedom
 
-### 1. Quantum Numbers and Degrees of Freedom
+### Quantum numbers
 
-Quantum numbers are represented as named tuples that index the Hilbert space. The `SystemDofs` structure defines all quantum degrees of freedom:
+A single-particle state is labelled by a `QuantumNumber` — a named-tuple wrapper that provides clean field access and display:
 
 ```julia
 using MeanFieldTheories
 
-# Example: System with site, sublattice, and valley
-dofs = SystemDofs(
-    site = 1:16,             # 16 sites
-    sublattice = [:A, :B],   # Two sublattices (honeycomb)
-    valley = [:K_plus, :K_minus]  # ±K valleys (or spin up/down)
-)
-
-# Create a quantum number
-qn = QN(site=1, sublattice=:A, valley=:K_plus)
-
-# Linear indexing
-idx = qn2linear(dofs, qn)      # Convert to linear index
-qn_back = linear2qn(dofs, idx)  # Convert back
+qn = QN(site=2, spin=1, orbital=2)
+qn.site      # 2
+qn.spin      # 1
 ```
 
-**Key features:**
-- Named tuple representation: natural mathematical notation
-- Automatic linear indexing for matrix/tensor construction
-- Arbitrary quantum numbers supported (spin, orbital, layer, sublattice, valley, etc.)
+The `QN` alias is equivalent to `QuantumNumber`.
 
-### 2. Lattice Structure
+### Defining the Hilbert space
 
-Lattices define spatial geometry and neighbor relationships:
+`SystemDofs` is built from a list of `Dof` objects, one per quantum-number component:
 
 ```julia
-# Honeycomb lattice (for MoTe₂, graphene, etc.)
-lattice = Lattice(:Honeycomb, 4, 4, pbc=true)
-
-# Square lattice (for cuprates, iron-based superconductors, etc.)
-lattice = Lattice(:Square, 6, 6, pbc=true)
-
-# Get neighbor bonds
-onsite_bonds = bonds(lattice, 0)   # On-site (delta=0)
-nn_bonds = bonds(lattice, 1)       # Nearest neighbors
-nnn_bonds = bonds(lattice, 2)      # Next-nearest neighbors
-
-# Each bond contains: site indices, displacement vector
-for bond in nn_bonds[1:3]
-    println("Bond: sites $(bond.i) -> $(bond.j), delta=$(bond.delta)")
-    println("  Direction: ", is_positive_direction(lattice, bond.delta))
-end
+dofs = SystemDofs([
+    Dof(:site, 4),
+    Dof(:spin, 2),
+    Dof(:orbital, 3)
+])
 ```
 
-### 3. Operators
-
-The module provides symbolic operator construction:
-
-- **`c(qn)`**: Annihilation operator at quantum number `qn`
-- **`cdag(qn)`**: Creation operator at quantum number `qn`
-- **`Operators(value, op1, op2, ...)`**: Operator product with coefficient
+`Dof(:name, n)` declares that this component takes integer values `1:n`. An optional label vector can be supplied for readability:
 
 ```julia
-qn1 = QN(site=1, valley=:K_plus)
-qn2 = QN(site=2, valley=:K_plus)
-
-# Hopping term: -t c†₁ c₂
-term = Operators(-1.0, cdag(qn1), c(qn2))
-
-# Complex hopping: (0.81 - 1.32i) c†₁ c₂
-term_complex = Operators(0.81 - 1.32im, cdag(qn1), c(qn2))
+Dof(:spin, 2, [:up, :down])
 ```
 
-**Display in natural notation:**
+The full set of valid single-particle states is the Cartesian product of all components:
+
 ```julia
-terms = [
-    Operators(-3.49, cdag(QN(site=1, sublattice=:A)), c(QN(site=2, sublattice=:B))),
-    Operators(0.81-1.32im, cdag(QN(site=1, sublattice=:A)), c(QN(site=3, sublattice=:A)))
-]
-display(terms)
-# Output:
-# Operators with 2 terms:
-#   -3.49 c†_{1,A}c_{2,B}
-#   + (0.81 - 1.32im) c†_{1,A}c_{3,A}
+dofs.valid_states   # Vector of QuantumNumber, length = 4 × 2 × 3 = 24
 ```
 
-### 4. Term Generators
+Any combination of components is supported — site, spin, orbital, sublattice, valley, layer, and so on — with no upper limit.
 
-High-level functions generate common operator terms:
+A `constraint` function can restrict the state space to a physically relevant subspace:
 
-**One-body generators:**
 ```julia
-generate_onebody(dofs, bonds, value; order=(cdag, 1, c, 2))
-```
-- `dofs`: Degrees of freedom
-- `bonds`: Spatial bonds (from lattice)
-- `value`: Coefficient (Number) or function `(delta, qn1, qn2) -> Number`
-- `order`: Operator pattern, e.g., `(cdag, 1, c, 2)` means c†₁c₂
-
-**Two-body generators:**
-```julia
-generate_twobody(dofs, bonds, value; order=(cdag, 1, c, 1, cdag, 2, c, 2))
+# Only keep states with site ≤ 2
+dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2)],
+    constraint = qn -> qn.site <= 2)
 ```
 
-**Convenience functions:**
-- `generate_coulomb_intra`, `generate_hund`, `generate_ising`, etc.
+### Sorting and block structure
 
-### 5. Matrix/Tensor Construction
+The order in which states appear in `valid_states` (and thus the row/column ordering of matrices) is controlled by `sortrule`, a permutation of `1:ndofs`:
 
 ```julia
-# One-body Hamiltonian matrix
-H_matrix = build_onebody_matrix(dofs, onebody_terms)
+# Default: reverse order, i.e. last DOF varies slowest
+# [Dof 2 slow, Dof 1 fast] for a 2-DOF system
+dofs = SystemDofs([Dof(:site, 3), Dof(:spin, 2)])
+# valid_states: QN(site=1,spin=1), QN(site=2,spin=1), QN(site=3,spin=1),
+#               QN(site=1,spin=2), QN(site=2,spin=2), QN(site=3,spin=2)
+```
 
-# Two-body interaction tensor
-V_tensor = build_interaction_tensor(dofs, twobody_terms)
+When a conserved quantum number makes the Hamiltonian block-diagonal, wrapping its index in a nested vector declares it as the block label:
+
+```julia
+# Spin is conserved → two blocks: spin=1 (indices 1:3) and spin=2 (indices 4:6)
+dofs = SystemDofs([Dof(:site, 3), Dof(:spin, 2)], sortrule = [[2], 1])
+dofs.blocks   # [1:3, 4:6]
+```
+
+Blocks are exploited automatically by the mean-field solvers to reduce memory and computation: the interaction matrix only needs to store elements within each block, giving a factor of $B^2$ reduction for $B$ symmetry blocks (e.g., 75% reduction for two spin blocks).
+
+Multiple nested levels can be specified for simultaneous conservation of several quantum numbers:
+
+```julia
+# Block by valley first, then by spin within each valley block
+dofs = SystemDofs([
+    Dof(:site, 4), Dof(:orbital, 2), Dof(:spin, 2), Dof(:valley, 2)
+], sortrule = [[4, 3], 2, 1])
+# → 4 blocks: (K,↑), (K,↓), (K′,↑), (K′,↓)
+```
+
+### Index conversion
+
+Linear indices map quantum numbers to matrix row/column positions. The lookup is O(1) via an internal hash table:
+
+```julia
+idx = qn2linear(dofs, QN(site=2, spin=1))   # Int
+qn  = linear2qn(dofs, idx)                  # QuantumNumber
 ```
 
 ---
 
-## Example 1: Twisted Bilayer MoTe₂ Kane-Mele Model
+## 2. Lattice
 
-**Reference:** Qiu & Wu, *Topological magnons and domain walls in twisted bilayer MoTe₂*, Phys. Rev. B **112**, 085132 (2025)
+### Unit cell
 
-### Model Description
-
-The tight-binding Hamiltonian for twisted bilayer MoTe₂ projected onto Wannier states is:
-
-$$
-\hat{H}_{KM} = \sum_{\tau, \alpha\beta, RR'} t^\tau_{\alpha\beta}(R-R') b^\dagger_{R\alpha\tau} b_{R'\beta\tau}
-$$
-
-where:
-- $b^\dagger_{R\alpha\tau}$ creates a hole at moiré unit cell $R$, sublattice $\alpha$ (A or B), valley $\tau$ (± or equivalently spin ↑↓)
-- $t^\tau_{\alpha\beta}(R-R')$ are hopping parameters up to 5th nearest neighbors
-
-**Key features:**
-1. **Nearest-neighbor hopping** $t_1$: Real, connects A-B sublattices
-2. **Next-nearest-neighbor hopping** $t_2$: **Complex** with phase factor $e^{i\phi_t \tau \nu_{ij}}$
-   - $\tau = \pm$ for valley (spin-valley locking)
-   - $\nu_{ij} = +1$ if hopping follows dashed arrows in Fig. 1, $-1$ if against
-3. **Extended hoppings** $t_3, t_4, t_5$: Connect further neighbors
-
-This is a **generalized Kane-Mele model** - two copies of time-reversal partner Haldane models - leading to topological Chern bands.
-
-**Parameters at twist angle θ = 3.5°** (from Fig. 1):
-- $t_1 = -3.49$ meV (nearest neighbor, real)
-- $t_2 = 0.81 - 1.32i$ meV (next-nearest neighbor, complex with direction-dependent phase)
-- $t_3 = 0.72$ meV
-- $t_4 = -0.26$ meV
-- $t_5 = 0.08$ meV
-
-### Implementation
+A `Lattice` maps position states to real-space coordinates. It is constructed from position degrees of freedom, the list of position states (one per site in the unit cell), and their Cartesian coordinates:
 
 ```julia
-using MeanFieldTheories
-using LinearAlgebra
-
-# ========================================
-# System setup
-# ========================================
-Lx, Ly = 4, 4
-lattice = Lattice(:Honeycomb, Lx, Ly, pbc=true)
-nsites = lattice.nsites
-
-# Degrees of freedom: site, sublattice (A/B), valley (± or ↑↓)
-# Valley ± is locked to spin ↑↓ in MoTe₂
-dofs = SystemDofs(
-    site = 1:nsites,
-    sublattice = [:A, :B],
-    valley = [:plus, :minus]  # τ = ± (or equivalently spin ↑↓)
+# Single-site square-lattice unit cell
+unitcell = Lattice(
+    [Dof(:cell, 1)],    # first DOF must have size=1 for tiling
+    [QN(cell=1)],
+    [[0.0, 0.0]]
 )
 
-println("Twisted MoTe₂ Kane-Mele model")
-println("System size: $nsites sites")
-println("Hilbert space dimension: ", length(dofs))
-
-# ========================================
-# Parameters (from Qiu & Wu, PRB 2025, Fig. 1, θ = 3.5°)
-# ========================================
-t1 = -3.49          # meV, nearest-neighbor (real)
-t2_mag = 0.81       # meV, magnitude of next-nearest-neighbor
-t2_phase = -1.32    # meV, imaginary part (encodes φ_t and direction)
-t3 = 0.72           # meV
-t4 = -0.26          # meV
-t5 = 0.08           # meV
-
-# ========================================
-# 1. Nearest-neighbor hopping: t1 (A-B)
-# ========================================
-nn_bonds = bonds(lattice, 1)
-
-function nn_hopping(delta, qn1, qn2)
-    # t1 connects A to B sublattices only
-    # Same valley (no valley mixing)
-    if qn1.sublattice != qn2.sublattice && qn1.valley == qn2.valley
-        return t1
-    end
-    return 0.0
-end
-
-t1_terms = generate_onebody(
-    dofs, nn_bonds, nn_hopping;
-    order = (cdag, 1, c, 2)
-).ops
-
-# ========================================
-# 2. Next-nearest-neighbor hopping: t2 (A-A or B-B)
-#    Complex with valley and direction dependent phase
-# ========================================
-nnn_bonds = bonds(lattice, 2)
-
-function nnn_hopping(delta, qn1, qn2)
-    # t2 connects same sublattice (A-A or B-B)
-    # Has phase factor: exp(i φ_t τ ν_ij)
-    if qn1.sublattice == qn2.sublattice && qn1.valley == qn2.valley
-        # Determine τ: +1 for valley=plus, -1 for valley=minus
-        tau = (qn1.valley == :plus) ? 1 : -1
-
-        # Determine ν_ij based on hopping direction
-        # On honeycomb lattice, next-nearest neighbors have specific directions
-        # ν_ij = +1 if following clockwise path around hexagon, -1 if counterclockwise
-        # This is encoded in delta and sublattice
-        # For honeycomb lattice, use displacement vector to determine circulation
-
-        # Get coordinates to determine direction
-        coord1 = get_coordinate(lattice, qn1.site)
-        coord2 = get_coordinate(lattice, qn2.site)
-        displacement = coord2 - coord1
-
-        # Determine circulation based on displacement and sublattice
-        # This follows the dashed arrows in Fig. 1 of the paper
-        # Simplified version: use cross product with reference direction
-        # For sublattice A: counterclockwise is positive
-        # For sublattice B: clockwise is positive
-        if qn1.sublattice == :A
-            # Example criterion (adjust based on actual lattice geometry)
-            nu_ij = (displacement[1] * 0.5 + displacement[2] > 0) ? 1 : -1
-        else  # sublattice B
-            nu_ij = (displacement[1] * 0.5 + displacement[2] > 0) ? -1 : 1
-        end
-
-        # Phase factor: exp(i φ_t τ ν_ij)
-        # From t2 = 0.81 - 1.32i, we extract the phase
-        # t2 = |t2| * exp(i * arg(t2)) = |t2| * exp(i φ_t τ ν_ij)
-        # For simplicity, use the full complex t2 with direction dependence
-        phase_factor = tau * nu_ij
-        t2_complex = (t2_mag + im * t2_phase)
-
-        # Apply phase: if phase_factor is negative, take complex conjugate
-        if phase_factor > 0
-            return t2_complex
-        else
-            return conj(t2_complex)
-        end
-    end
-    return 0.0
-end
-
-t2_terms = generate_onebody(
-    dofs, nnn_bonds, nnn_hopping;
-    order = (cdag, 1, c, 2)
-).ops
-
-# ========================================
-# 3. Third-nearest-neighbor hopping: t3
-# ========================================
-tn3_bonds = bonds(lattice, 3)
-
-function t3_hopping(delta, qn1, qn2)
-    # Real hopping, same valley
-    if qn1.valley == qn2.valley
-        return t3
-    end
-    return 0.0
-end
-
-t3_terms = generate_onebody(
-    dofs, tn3_bonds, t3_hopping;
-    order = (cdag, 1, c, 2)
-).ops
-
-# ========================================
-# 4. Fourth-nearest-neighbor hopping: t4
-# ========================================
-tn4_bonds = bonds(lattice, 4)
-
-function t4_hopping(delta, qn1, qn2)
-    if qn1.valley == qn2.valley
-        return t4
-    end
-    return 0.0
-end
-
-t4_terms = generate_onebody(
-    dofs, tn4_bonds, t4_hopping;
-    order = (cdag, 1, c, 2)
-).ops
-
-# ========================================
-# 5. Fifth-nearest-neighbor hopping: t5
-# ========================================
-tn5_bonds = bonds(lattice, 5)
-
-function t5_hopping(delta, qn1, qn2)
-    if qn1.valley == qn2.valley
-        return t5
-    end
-    return 0.0
-end
-
-t5_terms = generate_onebody(
-    dofs, tn5_bonds, t5_hopping;
-    order = (cdag, 1, c, 2)
-).ops
-
-# ========================================
-# 6. Coulomb interactions (optional)
-# ========================================
-onsite_bonds = bonds(lattice, 0)
-U = 10.0  # On-site Coulomb repulsion (meV)
-
-coulomb_terms = generate_coulomb_intra(dofs, onsite_bonds, U)
-
-# ========================================
-# Combine all hopping terms
-# ========================================
-all_hopping_terms = vcat(
-    t1_terms,
-    t2_terms,
-    t3_terms,
-    t4_terms,
-    t5_terms
+# Two-site (honeycomb) unit cell
+unitcell = Lattice(
+    [Dof(:cell, 1), Dof(:sublattice, 2, [:A, :B])],
+    [QN(cell=1, sublattice=1), QN(cell=1, sublattice=2)],
+    [[0.0, 0.0], [0.5, 0.289]]
 )
-
-# Build one-body Hamiltonian
-H_KM = build_onebody_matrix(dofs, all_hopping_terms)
-V_int = build_interaction_tensor(dofs, coulomb_terms)
-
-# ========================================
-# Analysis
-# ========================================
-println("\n" * "="^70)
-println("Twisted Bilayer MoTe₂: Kane-Mele Model (Eq. 2 from PRB 112, 085132)")
-println("="^70)
-println("Parameters at θ = 3.5°:")
-println("  t1 = $t1 meV (NN, real)")
-println("  t2 = $(t2_mag) + $(t2_phase)i meV (NNN, complex)")
-println("  t3 = $t3 meV")
-println("  t4 = $t4 meV")
-println("  t5 = $t5 meV")
-println("  U = $U meV (on-site Coulomb)")
-
-println("\nSystem properties:")
-println("  Lattice: Honeycomb $(Lx)×$(Ly), $nsites sites")
-println("  Hilbert space: ", size(H_KM, 1), " states")
-println("  Hopping terms: ", length(all_hopping_terms))
-println("    - t1 (NN): ", length(t1_terms))
-println("    - t2 (NNN): ", length(t2_terms))
-println("    - t3: ", length(t3_terms))
-println("    - t4: ", length(t4_terms))
-println("    - t5: ", length(t5_terms))
-println("  Interaction terms: ", length(coulomb_terms))
-
-# Diagonalize and analyze spectrum
-eigenvalues = eigvals(Hermitian(H_KM))
-println("\nOne-body band structure:")
-println("  Bandwidth: $(rd(maximum(real(eigenvalues)) - minimum(real(eigenvalues)))) meV")
-println("  Energy range: [$(rd(minimum(real(eigenvalues)))), $(rd(maximum(real(eigenvalues))))] meV")
-
-# Check if there's a gap (topological bands have gaps)
-sorted_eigs = sort(real(eigenvalues))
-mid_idx = length(sorted_eigs) ÷ 2
-if mid_idx > 0 && mid_idx < length(sorted_eigs)
-    gap = sorted_eigs[mid_idx+1] - sorted_eigs[mid_idx]
-    println("  Gap around Fermi level: $(rd(gap)) meV")
-end
-
-# Check Hermiticity
-hermiticity_error = norm(H_KM - H_KM')
-println("\nHermiticity check: ||H - H†|| = $(hermiticity_error)")
-
-# Display sample terms
-println("\n" * "-"^70)
-println("Sample t1 (nearest-neighbor) terms:")
-println("-"^70)
-display(t1_terms[1:min(4, length(t1_terms))])
-
-println("\n" * "-"^70)
-println("Sample t2 (next-nearest-neighbor, complex) terms:")
-println("-"^70)
-display(t2_terms[1:min(4, length(t2_terms))])
 ```
 
-### Key Features Explained
+The position DOFs of a `Lattice` can be a subset of the full system DOFs: `SystemDofs` may include additional internal DOFs (spin, orbital, ...) that the lattice does not know about. This separation means spatial and internal structure can be defined independently.
 
-1. **Valley-dependent phase (Kane-Mele mechanism)**:
-   - Next-nearest-neighbor hopping $t_2$ has phase factor $e^{i\phi_t \tau \nu_{ij}}$
-   - $\tau = \pm$ distinguishes ±K valleys (or spin ↑↓)
-   - $\nu_{ij} = \pm 1$ depends on circulation direction around hexagon
-   - This breaks time-reversal within each valley but preserves combined $\mathcal{T}$ symmetry
-   - Leads to opposite Chern numbers ±1 in the two valleys
+### Supercell construction
 
-2. **Topological properties**:
-   - Two moiré valence bands with Chern numbers ±1 per valley
-   - Quantum anomalous Hall effect at ν = 1 filling
-   - Topological magnon excitations with chiral edge states
+The physical simulation cell is built by tiling the unit cell along primitive lattice vectors. The first DOF of the unit cell (which must have `size=1`) is expanded to the total number of unit cells:
 
-3. **Wannier basis**:
-   - A sublattice: polarized to top layer (t)
-   - B sublattice: polarized to bottom layer (b)
-   - Reflects layer-sublattice locking in twisted system
+```julia
+a1, a2 = [1.0, 0.0], [0.0, 1.0]
+lattice = Lattice(unitcell, [a1, a2], (4, 4))
+# First DOF now has size = 16 (= 4×4 unit cells)
+# supercell_vectors = [4*a1, 4*a2] are set automatically
+```
 
-### Extensions and Applications
+The `supercell_vectors` field is used for periodic boundary conditions in bond generation and for the reciprocal-space grid in momentum-space HF.
 
-This model serves as the foundation for studying:
-- **Topological magnons** (intervalley spin-flip excitations with Chern numbers)
-- **Domain walls** between regions with opposite Chern numbers
-- **Fractional quantum anomalous Hall states** at other fillings
-- **Magnetic ordering temperature** via effective spin models
+Site coordinates can be queried by quantum number, even when the QN contains extra components beyond the position DOFs:
+
+```julia
+get_coordinate(lattice, QN(cell=3, sublattice=2))
+get_coordinate(lattice, QN(cell=3, sublattice=2, spin=1))  # extra keys are ignored
+```
+
+### Bonds
+
+A `Bond` connects one or more sites and stores, for each site:
+
+- `states`: the position QN (site label within the unit cell),
+- `coordinates`: absolute (unwrapped) Cartesian coordinate,
+- `icoordinates`: lattice vector of the unit cell containing that site.
+
+The `icoordinates` field is essential for momentum-space calculations: the difference `icoordinates[2] - icoordinates[1]` gives the integer lattice vector crossed by the bond, which becomes the displacement $\mathbf{R}$ in $T_{\mathbf{R}}$. For bonds that cross a periodic boundary, the periodic image site carries a non-zero `icoordinate` shift (e.g., `[-1.0, 0.0]`), while the originating site has `[0.0, 0.0]`.
+
+`bonds(lattice, boundary, neighbors)` generates all bonds of a given neighbor shell. The boundary tuple specifies periodic (`:p`) or open (`:o`) conditions per spatial direction:
+
+```julia
+# Onsite bonds (one site per bond)
+onsite = bonds(lattice, (:p, :p), 0)
+
+# Nearest-neighbor bonds (two sites per bond), periodic in both directions
+nn = bonds(lattice, (:p, :p), 1)
+
+# Next-nearest-neighbor, open in y
+nnn = bonds(lattice, (:p, :o), 2)
+
+# Multiple shells at once
+nn_and_nnn = bonds(lattice, (:p, :p), [1, 2])
+
+# Specific distances
+specific = bonds(lattice, (:p, :p), [1.0, 1.732])
+```
+
+Bonds are not restricted to two sites. Three-site and four-site bonds can be constructed manually (`Bond(states, coordinates, icoordinates)`) and passed to `generate_twobody` with the appropriate `order` to model ring-exchange and other multi-site interactions.
 
 ---
 
-## Example 2: Multi-Orbital Extended Hubbard Model
+## 3. Operators
 
-### Model Description
+### Primitive operators and operator terms
 
-The multi-orbital extended Hubbard model describes strongly correlated systems with multiple orbitals per site. The Hamiltonian includes:
-
-$$
-H = \sum_{ii', mm', \sigma} t^{ii'}_{mm'} c^\dagger_{im\sigma} c_{i'm'\sigma} + H_{\text{int}}
-$$
-
-The interaction part can be decomposed as:
-
-$$
-H_{\text{int}} = \sum_i \left[ \sum_m U n_{m\uparrow} n_{m\downarrow} + \sum_{m \neq m', \sigma\sigma'} U' n_{m\sigma} n_{m'\sigma'} + \sum_{m \neq m'} J c^\dagger_{m\uparrow} c^\dagger_{m\downarrow} c_{m'\downarrow} c_{m'\uparrow} - \sum_{m \neq m'} J c^\dagger_{m\uparrow} c_{m\downarrow} c^\dagger_{m'\downarrow} c_{m'\uparrow} \right]
-$$
-
-where:
-- **U**: Intra-orbital Coulomb repulsion
-- **U'**: Inter-orbital Coulomb repulsion
-- **J**: Hund's coupling (favors parallel spins) and spin-exchange term
-
-### Implementation
+Single creation and annihilation operators are constructed from quantum numbers:
 
 ```julia
-using MeanFieldTheories
-using LinearAlgebra
+i = QN(site=1, spin=1)
+j = QN(site=2, spin=1)
 
-# ========================================
-# System setup
-# ========================================
-Lx, Ly = 4, 4
-lattice = Lattice(:Square, Lx, Ly, pbc=true)
-nsites = lattice.nsites
-
-# Parameters
-t1 = 1.0      # Hopping for orbital 1 (eV)
-t2 = 0.8      # Hopping for orbital 2 (eV)
-t12 = 0.2     # Inter-orbital hopping (eV)
-U1 = 4.0      # Intra-orbital Coulomb for orbital 1 (eV)
-U2 = 3.5      # Intra-orbital Coulomb for orbital 2 (eV)
-U_prime = 2.0 # Inter-orbital Coulomb (eV)
-J_H = 0.6     # Hund's coupling (eV)
-
-# Degrees of freedom
-dofs = SystemDofs(
-    site = 1:nsites,
-    orbital = 1:2,
-    spin = [:up, :dn]
-)
-
-println("Multi-Orbital Extended Hubbard Model on $(Lx)×$(Ly) square lattice")
-println("Hilbert space dimension: ", length(dofs))
-
-# ========================================
-# ONE-BODY TERMS
-# ========================================
-nn_bonds = bonds(lattice, 1)
-onsite_bonds = bonds(lattice, 0)
-
-# Intra-orbital hopping
-function intra_hopping(delta, qn1, qn2)
-    if qn1.orbital == qn2.orbital
-        return (qn1.orbital == 1) ? -t1 : -t2
-    end
-    return 0.0
-end
-
-hopping_intra = generate_onebody(dofs, nn_bonds, intra_hopping;
-    order = (cdag, 1, c, 2)).ops
-
-# Inter-orbital hopping
-function inter_hopping(delta, qn1, qn2)
-    return (qn1.orbital != qn2.orbital) ? -t12 : 0.0
-end
-
-hopping_inter = generate_onebody(dofs, nn_bonds, inter_hopping;
-    order = (cdag, 1, c, 2)).ops
-
-# ========================================
-# TWO-BODY INTERACTION TERMS
-# ========================================
-
-# Intra-orbital Coulomb: U n_{m↑} n_{m↓}
-function intra_coulomb(delta, qn1, qn2, qn3, qn4)
-    if (qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital &&
-        qn1.spin != qn2.spin)
-        return (qn1.orbital == 1) ? U1 : U2
-    end
-    return 0.0
-end
-
-coulomb_intra = generate_twobody(dofs, onsite_bonds, intra_coulomb;
-    order = (cdag, 1, c, 1, cdag, 2, c, 2))
-
-# Inter-orbital Coulomb: U' n_{mσ} n_{m'σ'}
-function inter_coulomb(delta, qn1, qn2, qn3, qn4)
-    return (qn1.orbital != qn3.orbital) ? U_prime : 0.0
-end
-
-coulomb_inter = generate_twobody(dofs, onsite_bonds, inter_coulomb;
-    order = (cdag, 1, c, 1, cdag, 2, c, 2))
-
-# Hund's coupling and spin exchange
-hund_terms = generate_hund(dofs, onsite_bonds, J_H)
-
-# ========================================
-# Build Hamiltonians
-# ========================================
-hopping_terms = vcat(hopping_intra, hopping_inter)
-interaction_terms = vcat(coulomb_intra, coulomb_inter, hund_terms)
-
-H_onebody = build_onebody_matrix(dofs, hopping_terms)
-V_twobody = build_interaction_tensor(dofs, interaction_terms)
-
-# ========================================
-# Analysis
-# ========================================
-println("\n" * "="^70)
-println("Multi-Orbital Extended Hubbard Model")
-println("="^70)
-println("Parameters:")
-println("  t1 = $t1 eV, t2 = $t2 eV, t12 = $t12 eV")
-println("  U1 = $U1 eV, U2 = $U2 eV, U' = $U_prime eV, J = $J_H eV")
-
-println("\nSystem properties:")
-println("  One-body terms: ", length(hopping_terms))
-println("  Two-body terms: ", length(interaction_terms))
-println("  Matrix size: ", size(H_onebody))
-println("  Tensor size: ", size(V_twobody))
-
-eigenvalues = eigvals(Hermitian(H_onebody))
-println("\nOne-body spectrum:")
-println("  Bandwidth: $(rd(maximum(real(eigenvalues)) - minimum(real(eigenvalues)))) eV")
-
-println("\nSample Hund's coupling terms:")
-display(hund_terms[1:min(4, length(hund_terms))])
+cdag(i)   # creation  c†_{site=1, spin=1}
+c(j)      # annihilation c_{site=2, spin=1}
 ```
 
-### Key Features
+An `Operators` object is a product of primitive operators with a (possibly complex) coefficient:
 
-1. **Orbital differentiation**: Each orbital has distinct hopping and Coulomb U
-2. **Hund's coupling**: Favors high-spin configurations (parallel spins in different orbitals)
-3. **Rich phase diagram**: Competition between U, U', J drives various orders
+```julia
+# Hopping term: -t c†_i c_j
+Operators(-1.0, [cdag(i), c(j)])
+
+# Complex hopping
+Operators(0.81 - 1.32im, [cdag(i), c(j)])
+
+# Four-operator interaction: U c†_↑ c_↑ c†_↓ c_↓
+Operators(U, [cdag(QN(site=1,spin=1)), c(QN(site=1,spin=1)),
+              cdag(QN(site=1,spin=2)), c(QN(site=1,spin=2))])
+```
+
+Operators are stored in the user-supplied order; reordering to canonical InterAll form (c†c c†c …) happens automatically during matrix construction.
+
+### Generating one-body terms
+
+`generate_onebody` iterates over all bonds and all combinations of internal DOFs, calling a user-supplied `value` function to assign the coefficient for each term:
+
+```julia
+onebody = generate_onebody(dofs, bonds, value; order=(cdag, 1, c, 2), hc=true)
+```
+
+**Arguments:**
+- `value`: a `Number` (uniform coefficient) or a function `(delta, qn1, qn2) -> Number`.
+  `delta` is generated as `bond.coordinates[1] - bond.coordinates[2]` — the vector
+  from site 2 to site 1, encoding the full bond direction (magnitude and angle).
+- `order`: `(op_type1, site1, op_type2, site2)` — which site of the bond each operator
+  acts on. Default `(cdag, 1, c, 2)` places the creation operator on site 1 and the
+  annihilation operator on site 2, giving the standard hopping $c^\dagger_1 c_2$.
+- `hc=true`: automatically appends the Hermitian conjugate of each term with the
+  displacement sign flipped. Together with a `value` function that returns real
+  coefficients, this guarantees a Hermitian Hamiltonian without manual bookkeeping.
+
+**Return value:** a NamedTuple `(ops, delta, irvec)` — three parallel vectors.
+`irvec[n] = icoordinates[2] - icoordinates[1]` for term `n` is the unit-cell
+displacement, which is passed directly to `build_Tr` for momentum-space HF.
+
+**Example — spin-conserving nearest-neighbor hopping:**
+
+```julia
+t_onebody = generate_onebody(dofs, nn_bonds,
+    (delta, qn1, qn2) -> qn1.spin == qn2.spin ? -1.0 : 0.0)
+# t_onebody is a NamedTuple with three parallel vectors:
+#   t_onebody.ops   → Vector{Operators}       (one entry per generated term; hc=true doubles the count)
+#   t_onebody.delta → Vector{Vector{Float64}} (physical bond vector for each term)
+#   t_onebody.irvec → Vector{Vector{Float64}} (unit-cell displacement R for each term; used by build_Tr)
+t_ops = t_onebody.ops
+```
+
+**Example — direction-dependent complex hopping:**
+
+The `delta` vector carries the full bond direction, enabling valley- or direction-dependent phases without any separate bookkeeping:
+
+```julia
+t2_onebody = generate_onebody(dofs, nnn_bonds,
+    (delta, qn1, qn2) -> begin
+        qn1.spin != qn2.spin && return 0.0          # spin-conserving
+        tau = qn1.spin == 1 ? +1 : -1               # valley sign
+        nu  = sign(delta[1] + 0.5*delta[2]) |> Int  # circulation direction
+        return (0.81 + 1.32im) * (tau * nu)
+    end)
+# t2_onebody.ops   → Vector{Operators} with complex coefficients
+# t2_onebody.delta → Vector{Vector{Float64}} encoding bond direction (used above for nu)
+# t2_onebody.irvec → Vector{Vector{Float64}} encoding lattice vector R
+t2_ops = t2_onebody.ops
+```
+
+**Example — orbital-selective intra- and inter-orbital hopping:**
+
+```julia
+# Intra-orbital: different hopping per orbital, same spin
+t_intra = generate_onebody(dofs, nn_bonds,
+    (delta, qn1, qn2) -> begin
+        qn1.spin != qn2.spin && return 0.0
+        qn1.orbital != qn2.orbital && return 0.0
+        qn1.orbital == 1 ? -1.0 : -0.8
+    end).ops
+# .ops → Vector{Operators}: one term per (bond, spin, orbital) combination passing the filter
+
+# Inter-orbital: mixing between orbitals
+t_inter = generate_onebody(dofs, nn_bonds,
+    (delta, qn1, qn2) ->
+        qn1.spin == qn2.spin && qn1.orbital != qn2.orbital ? -0.2 : 0.0).ops
+```
+
+### Generating two-body terms
+
+`generate_twobody` follows the same pattern for four-operator interaction terms, but offers additional generality:
+
+```julia
+twobody = generate_twobody(dofs, bonds, value; order=(cdag, 1, c, 1, cdag, 2, c, 2))
+```
+
+**Arguments:**
+- `value`: a `Number` or a function `(deltas, qn1, qn2, qn3, qn4) -> Number`.
+  `deltas` is generated as `deltas[i] = bond.coordinates[i] - bond.coordinates[nb]`
+  for `i = 1 … nb-1`, where `nb = length(bond.states)` is the number of bond sites
+  and the **last site is the reference (origin)**. This convention is consistent with
+  the hopping picture $c^\dagger_i c_j$ where the bond direction points from $j$ to $i$:
+  `deltas[1] = coord[1] - coord[nb]`.
+  For 1-site bonds `deltas` is empty; for 2-site bonds `deltas[1]` is the single
+  bond vector (site 1 minus site 2); for 3- or 4-site bonds all displacements from
+  the last site are provided, giving complete cluster geometry.
+- `order`: `(type1, site1, type2, site2, type3, site3, type4, site4)`.
+  Each site index refers to `bond.states[i]`; it can be 1, 2, 3, or 4 (the bond must
+  have at least that many sites). This allows all four operators to be placed on
+  any combination of sites, not just one or two.
+
+**Return value:** a NamedTuple `(ops, irvec)`.
+- `ops`: operators already reordered to InterAll format (c†c c†c) with the fermionic
+  sign absorbed into the coefficient.
+- `irvec`: a `Vector{NTuple{3, Vector{Float64}}}`, where each tuple `(τ1, τ2, τ3)`
+  gives the three unit-cell displacements that characterize the four-site interaction
+  under translational invariance: $\tau_n = \mathrm{icoord}(\mathrm{op}_n) - \mathrm{icoord}(\mathrm{op}_4)$.
+  For onsite or density-density interactions $\tau_1 = \tau_3 = 0$.
+
+**Example — onsite Hubbard $U n_\uparrow n_\downarrow$:**
+
+```julia
+hubbard = generate_twobody(dofs, onsite_bonds,
+    (deltas, qn1, qn2, qn3, qn4) ->
+        qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital &&
+        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U : 0.0,
+    order = (cdag, 1, c, 1, cdag, 1, c, 1))
+# hubbard is a NamedTuple:
+#   hubbard.ops   → Vector{Operators} in InterAll (c†c c†c) format with fermionic sign absorbed
+#   hubbard.irvec → Vector{NTuple{3,Vector{Float64}}}; each tuple (τ1,τ2,τ3) gives
+#                   unit-cell displacements of operators 1,2,3 relative to operator 4.
+#                   For onsite Hubbard: all τ = [0.0, 0.0] (all on same site).
+```
+
+**Example — nearest-neighbor density-density interaction along x only:**
+
+```julia
+nn_coulomb = generate_twobody(dofs, nn_bonds,
+    (deltas, qn1, qn2, qn3, qn4) -> deltas[1] ≈ [1.0, 0.0] ? V : 0.0)
+# For a 2-site bond: deltas = [bond.coordinates[1] - bond.coordinates[2]]
+# i.e. the vector from the second site to the first — only +x bonds (deltas[1]=[1,0]) pass the filter
+# nn_coulomb.ops   → Vector{Operators} for +x direction bonds only
+# nn_coulomb.irvec → (τ1,τ2,τ3) where τ1=τ3=[0,0] and τ2 encodes the unit-cell shift between the two sites
+```
+
+**Example — Hund's pair hopping $J c^\dagger_{m\uparrow} c^\dagger_{m\downarrow} c_{m'\downarrow} c_{m'\uparrow}$:**
+
+```julia
+hund = generate_twobody(dofs, onsite_bonds,
+    (deltas, qn1, qn2, qn3, qn4) ->
+        (qn1.orbital, qn3.orbital) == (qn2.orbital, qn4.orbital) &&
+        qn1.orbital != qn3.orbital &&
+        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 2, 2, 1) ? J : 0.0,
+    order = (cdag, 1, cdag, 1, c, 1, c, 1))
+# hund.ops   → Vector{Operators} with reordering sign from c†c†cc → c†c c†c InterAll form
+# hund.irvec → all ([0,0],[0,0],[0,0]) since all operators are on the same site
+```
+
+**Example — four-site ring exchange $K c^\dagger_1 c_4 c^\dagger_3 c_2$ (distinct sites):**
+
+For interactions where all four operators sit on *different* lattice sites a 4-site bond is needed. The site indices in `order` map directly to `bond.states[i]`, so any permutation of sites 1–4 is valid:
+
+```julia
+# Build 4-site plaquette bonds (e.g., corners of a square unit cell)
+plaquette_bonds = bonds(lattice, (:p, :p), [1, 2, 3])  # collect all up to 3rd-neighbor to form plaquettes
+# (or construct Bond objects manually for exact 4-site clusters)
+
+ring = generate_twobody(dofs, plaquette_bonds,
+    (deltas, qn1, qn2, qn3, qn4) ->
+        qn1.spin == qn2.spin == qn3.spin == qn4.spin ? K : 0.0,
+    order = (cdag, 1, c, 4, cdag, 3, c, 2))
+# order = (cdag,1, c,4, cdag,3, c,2) means:
+#   operator 1: c†  at bond site 1  (qn1, icoord from bond.icoordinates[1])
+#   operator 2: c   at bond site 4  (qn2, icoord from bond.icoordinates[4])
+#   operator 3: c†  at bond site 3  (qn3, icoord from bond.icoordinates[3])
+#   operator 4: c   at bond site 2  (qn4, icoord from bond.icoordinates[2])
+# After InterAll reordering (c†c c†c), τ1,τ2,τ3 are computed from the
+# icoordinates of the reordered operators relative to the 4th one.
+# ring.ops   → Vector{Operators} with all four operators on distinct lattice sites
+# ring.irvec → non-trivial (τ1,τ2,τ3) encoding the full 4-site cluster geometry
+```
+
+The `value` function mechanism makes all these variants — and arbitrary combinations of them — expressible without any modifications to the library. Physical constraints (spin conservation, orbital selection, direction filtering, multi-site geometry) are encoded entirely in user-supplied anonymous functions.
+
+### Building matrices
+
+Once operator lists are assembled, matrix representations are built by:
+
+```julia
+# Full one-body Hamiltonian H[i,j]
+H = build_onebody_matrix(dofs, onebody.ops)
+
+# Full two-body interaction tensor V[i,j,k,l] in InterAll format
+V = build_interaction_tensor(dofs, twobody.ops)
+```
+
+For mean-field calculations the interaction is more efficiently accessed through `build_U` (real-space HF) or `build_Vr` / `build_Vk` (momentum-space HF), which bypass the $O(N^4)$ dense tensor entirely. See the respective HF solver documentation for details.
 
 ---
 
 ## Summary
 
-The `quantumsystem` module enables rapid construction of quantum many-body Hamiltonians:
-
-✅ **Flexible degrees of freedom** - valleys, orbitals, sublattices, spins
-✅ **Complex parameters** - direction-dependent phases, valley-dependent couplings
-✅ **Automatic sign handling** - fermionic anticommutation built-in
-✅ **Topological models** - Kane-Mele, Haldane, Chern insulators
-✅ **Strong correlations** - Extended Hubbard, Hund's coupling
-
-### Typical Workflow
-
-1. Define `SystemDofs` and `Lattice`
-2. Use `generate_onebody`/`generate_twobody` with value functions
-3. Build matrices with `build_onebody_matrix`/`build_interaction_tensor`
-4. Solve using diagonalization, DMFT, ED, DMRG, etc.
-
-This framework accelerates research in twisted moiré materials, topological insulators, and strongly correlated systems!
-
-## References
-
-- Qiu, W.-X. & Wu, F., *Topological magnons and domain walls in twisted bilayer MoTe₂*, Phys. Rev. B **112**, 085132 (2025)
+| Component | Key design choices |
+|-----------|-------------------|
+| `SystemDofs` | Arbitrary DOF names and sizes; `constraint` prunes the state space; nested `sortrule` creates block-diagonal structure for conserved quantum numbers |
+| `Lattice` / `Bond` | Any unit-cell geometry; tiling constructor handles PBC automatically; `icoordinates` carries unit-cell origin information needed for Bloch-space calculations |
+| `generate_onebody` | `delta`-aware value function for direction-dependent coefficients; `hc=true` for automatic Hermitian conjugate; returns `(ops, delta, irvec)` |
+| `generate_twobody` | 1–4 site bonds; `deltas` vector for full cluster geometry; arbitrary operator ordering; returns InterAll operators with `(τ1, τ2, τ3)` displacement metadata |
+| `build_*` | Sparse matrix/tensor construction; specialized paths in HF solvers avoid dense $N^4$ tensors |

@@ -246,7 +246,7 @@ Generate one-body terms from bonds.
 `NamedTuple` with three parallel `Vector` fields:
 - `.ops::Vector{Operators}`: operator terms
 - `.delta::Vector{Vector{Float64}}`: physical displacement for each term
-  (`bond.coordinates[2] - bond.coordinates[1]`, unwrapped)
+  (`bond.coordinates[1] - bond.coordinates[2]`, i.e. site 1 minus site 2)
 - `.irvec::Vector{Vector{Float64}}`: unit-cell displacement for each term
   (`bond.icoordinates[2] - bond.icoordinates[1]`); zero for intra-cell bonds,
   non-zero for bonds crossing a periodic boundary
@@ -286,7 +286,7 @@ function generate_onebody(
         @assert length(bond.states) == 2 "One-body generator requires 2-site bonds"
 
         s1, s2   = bond.states
-        delta    = rd(bond.coordinates[2]  .- bond.coordinates[1])
+        delta    = rd(bond.coordinates[1]  .- bond.coordinates[2])
         irvec    = rd(bond.icoordinates[2] .- bond.icoordinates[1])
         pos_keys = keys(s1)
 
