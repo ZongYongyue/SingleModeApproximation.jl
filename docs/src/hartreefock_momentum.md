@@ -116,6 +116,12 @@ For a ground state that preserves discrete translational symmetry, the single-pa
 $$\langle c^\dagger_{\mathbf{k}a}\,c_{\mathbf{k}'b}\rangle
 = \delta_{\mathbf{k},\mathbf{k}'}\,G^{ab}(\mathbf{k})$$
 
+Its real-space counterpart is defined by the inverse Fourier transform
+
+$$G^{ab}(\mathbf{r}) \equiv \frac{1}{N}\sum_{\mathbf{k}} G^{ab}(\mathbf{k})\,e^{-i\mathbf{k}\cdot\mathbf{r}} = \langle c^\dagger_{\mathbf{r},a}\,c_{\mathbf{0},b}\rangle$$
+
+which uses the **negative** phase convention (creation operator carries $e^{-i\mathbf{k}\cdot\mathbf{r}}$, consistent with §2.1). This pairs with the interaction kernel convention $\widetilde{W}(\mathbf{q})=\sum_\mathbf{r}W(\mathbf{r})\,e^{+i\mathbf{q}\cdot\mathbf{r}}$ so that both $G$ and $\widetilde{W}$ are forward Fourier transforms; the FFT identities in §6 hold under this consistent choice.
+
 States at different $\mathbf{k}$ points are uncorrelated. If translational symmetry is spontaneously broken (e.g., antiferromagnetic order, charge density wave), the magnetic unit cell must be adopted as the new unit cell and $\mathbf{k}$ redefined in the corresponding Brillouin zone.
 
 #### 3.2 Wick Decomposition
