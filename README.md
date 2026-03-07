@@ -8,11 +8,13 @@ See documents: https://ZongYongyue.github.io/MeanFieldTheories.jl
 
 ## Features
 
-- **Fully customizable Hamiltonian operator representation.** Lattice geometry, unit-cell structure, and all internal degrees of freedom (spin, orbital, sublattice, valley, …) are freely defined by the user via `SystemDofs` and `Lattice`, with user-specified constraints on each degree of freedom (e.g. spin conservation, orbital selection rules). When generating operator representations, these DOF index constraints can be applied directly to `generate_onebody` and `generate_twobody` to select only the desired terms on each bond — no manual filtering required. The two-body interaction $\frac{1}{2}\sum_{ijkl}\sum_{abcd}V^{abcd}_{ijkl}\,c^\dagger_{ia}c_{jb}c^\dagger_{kc}c_{ld}$ places no restrictions on the site cluster $(i,j,k,l)$ (from fully onsite to four distinct sites) or the internal-index structure $(a,b,c,d)$; the creation-annihilation ordering of the operator string is also arbitrary and handled automatically. This makes the package applicable to any lattice model without modification.
+- **Fully customizable quantum system** Degrees of freedom (site,, sublattice, spin, orbital, valley, …) are freely defined by the user via `SystemDofs`, with user-specified constraints.
 
-- **Optional symmetry-block structure.** Internal degrees of freedom can be declared as block-diagonal symmetry sectors, reducing matrix sizes and diagonalization cost. Block structure is an opt-in feature — the same workflow applies with or without it.
+-  **High flexibility for generating operator representations** DOF index constraints can be applied directly to `generate_onebody` and `generate_twobody` to select only the desired terms on each bond. 
 
-- **Unrestricted Hartree-Fock in both real and momentum space.** All four Wick contraction channels (Hartree and Fock, both pairs) are kept open with no preset symmetry breaking — the solver imposes no assumed magnetic or charge order and is free to converge to any self-consistent state. `solve_hf` operates in real space for finite or small periodic systems. `solve_hfk` exploits translational symmetry to reduce cost to $O(N_k d^3)$, with FFT-accelerated self-energy evaluation at $O(N_k \log N_k)$ for single-displacement interactions; the user specifies the magnetic unit cell size to define the assumed translational symmetry, enabling controlled study of ordered phases.
+-  **Highly free forms of interaction** Two-body interaction allows four different site index $(i,j,k,l)$. The creation-annihilation ordering of the operator string is also arbitrary and handled automatically.
+
+- **Unrestricted Hartree-Fock in both real and momentum space.** All four Wick contraction channels (Hartree and Fock, both pairs) are kept open with no preset symmetry breaking.
 
 - **Complete post-HF excitation spectrum.** On top of the mean-field ground state, collective modes are accessible via Single-Mode Approximation (SMA) and Random Phase Approximation (RPA), yielding dynamic structure factors and excitation gaps directly.
 
