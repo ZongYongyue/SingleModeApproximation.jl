@@ -408,8 +408,9 @@ Assemble the Hartree and Fock real-space kernels for Case B interactions
 
 **Hartree** (FFT, contracted with G^{cd}(r) then transformed to q):
     Σ_H^{ab}(q) = (1/2) FFT_r[ Σ_{cd} [W^{cdab}(-r) + W^{abcd}(r)] G^{cd}(r) ]
-Using W^{cdab}(-r) = conj(W^{badc}(r)):
-    hartree.mats[n][a,b,c,d] = conj(permutedims(W(r),(2,1,4,3))) + W(r)
+Case B hermiticity: [W^{abcd}(τ)]* = W^{dcba}(τ) (same displacement, cf. Case A).
+Hence W^{cdab}(-r) = conj(W^{dcba}(r)):
+    hartree.mats[n][a,b,c,d] = conj(permutedims(W(r),(4,3,2,1))) + W(r)
                                 ──────────────────────────────────   ──────
                                  W^{cdab}(-r)                        W^{abcd}(r)
     hartree.delta[n] = τ (= τ2 = τ3 of the taus triple)
@@ -434,7 +435,7 @@ function build_Wr_B(mats_b, taus_b)
 
     for (W, (_, τ2, _)) in zip(mats_b, taus_b)
         idx = findfirst(==(τ2), delta)
-        hartree_mats[idx] .+= conj(permutedims(W, (2,1,4,3))) .+ W
+        hartree_mats[idx] .+= conj(permutedims(W, (4,3,2,1))) .+ W
         fock .+= permutedims(W, (3,2,1,4)) .+ permutedims(W, (1,4,3,2))
     end
 
@@ -455,10 +456,13 @@ and Fock are not separated — the full self-energy is a single FFT:
 where all W factors are evaluated at -r (from hermiticity W^{abcd}(-r) = conj(W^{dcba}(r))):
 
     K(r)[a,b,c,d] = W^{cdab}(-r) + W^{abcd}(-r) - W^{cbad}(-r) - W^{adcb}(-r)
-                  = conj(permutedims(W(r),(2,1,4,3)))   [W^{cdab}(-r) = conj(W^{badc}(r))]
-                  + conj(permutedims(W(r),(4,3,2,1)))   [W^{abcd}(-r) = conj(W^{dcba}(r))]
-                  - conj(permutedims(W(r),(2,3,4,1)))   [W^{cbad}(-r) = conj(W^{dabc}(r))]
-                  - conj(permutedims(W(r),(4,1,2,3)))   [W^{adcb}(-r) = conj(W^{bcda}(r))]
+
+Case C hermiticity: [W^{abcd}(τ)]* = W^{dcba}(-τ), so W^{efgh}(-r) = conj(W^{hgfe}(r)).
+Each term mapped to its source at +r:
+    W^{cdab}(-r) = conj(W^{badc}(r)) = conj(permutedims(W(r),(2,1,4,3)))
+    W^{abcd}(-r) = conj(W^{dcba}(r)) = conj(permutedims(W(r),(4,3,2,1)))
+    W^{cbad}(-r) = conj(W^{dabc}(r)) = conj(permutedims(W(r),(2,3,4,1)))
+    W^{adcb}(-r) = conj(W^{bcda}(r)) = conj(permutedims(W(r),(4,1,2,3)))
 
 Note: the caller must multiply K(r) by G(-r) (not G(r)) before applying FFT.
 
