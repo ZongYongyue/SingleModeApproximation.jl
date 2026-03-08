@@ -49,13 +49,12 @@ function make_ops(dofs)
         order = (cdag, :i, c, :i, cdag, :i, c, :i)).ops
     vcat(t_ops, U_ops)
 end
-```
 
-```julia
 dofs = SystemDofs([Dof(:site, 16), Dof(:spin, 2, [:up, :down])])
 result = solve_hfr(dofs, make_ops(dofs), [16])
 ```
 
+Run log:
 ```
 ============================================================
 Hartree-Fock SCF Solver
@@ -126,6 +125,7 @@ ks = build_kpoints([[2.0, 0.0], [0.0, 2.0]], (2, 2))
 result = solve_hfk(dofs, onebody, twobody, ks, 16)
 ```
 
+Run log:
 ```
 ============================================================
 Hartree-Fock SCF Solver (momentum space)
