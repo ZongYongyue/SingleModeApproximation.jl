@@ -21,6 +21,7 @@ makedocs(;
             "Momentum Space"  => "hartreefock_momentum.md",
         ],
         "Single-Mode Approximation" => "singlemode.md",
+        "API Reference" => "api.md",
     ],
     checkdocs=:none,
     warnonly=true,
