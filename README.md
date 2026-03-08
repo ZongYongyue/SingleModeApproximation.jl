@@ -27,7 +27,9 @@ Pkg.develop(url="https://github.com/ZongYongyue/MeanFieldTheories.jl")
 
 ## Quick Start
 
-Square-lattice Hubbard model ($t=1$, $U=4$, half-filling on a 4×4 lattice) solved by real-space Hartree-Fock. The four cases below demonstrate the trade-off between spin-block structure, memory efficiency, and convergence to the global minimum.
+### Real-Space Hartree-Fock Approximation (`solve_hfr`)
+
+Hubbard model ($t=1$, $U=4$, half-filling on a 4×4 square lattice) solved by real-space Hartree-Fock. 
 
 ```julia
 using MeanFieldTheories
@@ -44,123 +46,14 @@ function make_ops(dofs)
     U_ops = generate_twobody(dofs, bonds(lattice, (:p, :p), 0),
         (deltas, qn1, qn2, qn3, qn4) ->
             (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U : 0.0,
-        order = (cdag, 1, c, 1, cdag, 1, c, 1)).ops
+        order = (cdag, :i, c, :i, cdag, :i, c, :i)).ops
     vcat(t_ops, U_ops)
 end
 ```
 
-**Case 1 — spin blocks, single run:**
-
 ```julia
-dofs_b = SystemDofs([Dof(:site, 16), Dof(:spin, 2, [:up, :down])], sortrule = [[2], 1])
-result = solve_hf(dofs_b, make_ops(dofs_b), [8, 8])
-```
-
-```
-============================================================
-Hartree-Fock SCF Solver
-============================================================
-Building Hamiltonian  (144 operators)
-           t matrix: (32, 32), nnz = 128      243.021ms
-           U matrix: (1024, 1024), nnz = 32        28.811ms
-System: N = 32, blocks = 2, particles = [8, 8] (total = 16)
-T = 0,  mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
-============================================================
-G initialized   139.263ms
-Iter    1  res = 7.805e-03  E = -24.155896  NCond = 1.4441
-Iter    2  res = 7.185e-03  E = -36.510383  NCond = 16.0000
-Iter    3  res = 3.212e-03  E = -9.235923   NCond = 16.0000
-Iter    4  res = 1.971e-03  E = -9.709626   NCond = 16.0000
-Iter    5  res = 1.767e-03  E = -9.770197   NCond = 16.0000
-Iter   10  res = 5.730e-04  E = -10.546756  NCond = 16.0000
-Iter   20  res = 3.884e-06  E = -10.114867  NCond = 16.0000
-Iter   30  res = 2.159e-07  E = -10.112959  NCond = 16.0000
-Iter   40  res = 1.055e-07  E = -10.112967  NCond = 16.0000
-Iter   50  res = 1.544e-08  E = -10.112965  NCond = 16.0000
-Iter   53  res = 9.972e-09 < 1.000e-08  CONVERGED
-============================================================
-SCF CONVERGED  (53 iterations)
-  Band energy:        +2.3594869312
-  Interaction energy: -12.4724545253
-  Total energy:       -10.1129675941
-  NCond:              16.000000
-  Sz:                 -0.000000
-  μ (block 1):       +2.0000000007
-  μ (block 2):       +1.9999999993
-
-  ── Timing Summary ────────────────────────────────────────────
-  Phase                      Total         Avg   Calls
-  ────────────────────────────────────────────────────────
-  build_T                243.021ms   243.021ms       1
-  build_U                 28.811ms    28.811ms       1
-  initialize_green       139.263ms   139.263ms       1
-  build_h_eff             71.039ms     1.340ms      53
-  diagonalize              7.170ms   135.273μs      53
-  update_green           761.247μs    14.363μs      53
-  calc_energies          159.287μs     3.063μs      52
-  ────────────────────────────────────────────────────────
-  solve_hf (total)         1.927 s      1.927 s        1
-  ────────────────────────────────────────────────────────
-```
-
-**Case 2 — spin blocks, 10 random restarts:**
-
-```julia
-result = solve_hf(dofs_b, make_ops(dofs_b), [8, 8], n_restarts = 10)
-```
-
-```
-============================================================
-Hartree-Fock SCF Solver
-============================================================
-Building Hamiltonian  (144 operators)
-           t matrix: (32, 32), nnz = 128      255.201ms
-           U matrix: (1024, 1024), nnz = 32        32.010ms
-System: N = 32, blocks = 2, particles = [8, 8] (total = 16)
-T = 0,  mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
-Restarts: 10
-============================================================
-  Restart  1: E = -10.7471610309  (CONVERGED, 20 iters)
-  Restart  2: E = -10.1129683059  (CONVERGED, 44 iters)
-  Restart  3: E = -10.7471659564  (CONVERGED, 24 iters)
-  Restart  4: E = -10.3525486035  (CONVERGED, 37 iters)
-  Restart  5: E = -10.7471668476  (CONVERGED, 24 iters)
-  Restart  6: E = -10.7471664768  (CONVERGED, 24 iters)
-  Restart  7: E = -12.5665533115  (CONVERGED, 16 iters)
-  Restart  8: E = -10.7471662060  (CONVERGED, 21 iters)
-  Restart  9: E = -10.1129664405  (CONVERGED, 48 iters)
-  Restart 10: E = -10.0596092120  (CONVERGED, 112 iters)
-============================================================
-Best result from 10 restarts:
-SCF CONVERGED  (16 iterations)
-  Band energy:        -4.5074893226
-  Interaction energy: -8.0590639888
-  Total energy:       -12.5665533115
-  NCond:              16.000000
-  Sz:                 +0.000000
-  μ (block 1):       +2.0000000357
-  μ (block 2):       +1.9999999632
-
-  ── Timing Summary ────────────────────────────────────────────
-  Phase                      Total         Avg   Calls
-  ────────────────────────────────────────────────────────
-  build_T                255.201ms   255.201ms       1
-  build_U                 32.010ms    32.010ms       1
-  initialize_green       141.842ms    14.184ms      10
-  build_h_eff            918.422μs     2.482μs     370
-  diagonalize             18.867ms    50.990μs     370
-  update_green             1.137ms     3.074μs     370
-  calc_energies          715.081μs     1.986μs     360
-  ────────────────────────────────────────────────────────
-  solve_hf (total)         1.993 s      1.993 s        1
-  ────────────────────────────────────────────────────────
-```
-
-**Case 3 — no block structure, single run:**
-
-```julia
-dofs_nb = SystemDofs([Dof(:site, 16), Dof(:spin, 2, [:up, :down])])
-result = solve_hf(dofs_nb, make_ops(dofs_nb), [16])
+dofs = SystemDofs([Dof(:site, 16), Dof(:spin, 2, [:up, :down])])
+result = solve_hfr(dofs, make_ops(dofs), [16])
 ```
 
 ```
@@ -201,63 +94,73 @@ SCF CONVERGED  (19 iterations)
   update_green           106.000μs     5.578μs      19
   calc_energies           53.664μs     2.981μs      18
   ────────────────────────────────────────────────────────
-  solve_hf (total)         1.879 s      1.879 s        1
+  solve_hfr (total)         1.879 s      1.879 s        1
   ────────────────────────────────────────────────────────
 ```
+### Momentum-Space Hartree-Fock Approximation (`solve_hfk`)
 
-**Case 4 — no block structure, 10 random restarts:**
+t-V model ($$H = -t Σ_{<ij>,σ} c†_{iσ}c_{jσ} + V Σ_{i≠j,σσ'} n_{iσ}n_{jσ'}$$, $$t=1$$, $$V=4$$ on  a 4×4 square lattice) solved by momentum-space Hartree-Fock. 
 
 ```julia
-result = solve_hf(dofs_nb, make_ops(dofs_nb), [16], n_restarts = 10)
+using MeanFieldTheories
+
+dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2, [:up, :dn])])
+
+unitcell = Lattice([Dof(:site, 4)],
+                     [QN(site=1), QN(site=2), QN(site=3), QN(site=4)],
+                     [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
+                     supercell_vectors=[[2.0, 0.0], [0.0, 2.0]])
+
+nn_bonds = bonds(unitcell, (:p, :p), 1)
+
+onebody = generate_onebody(dofs, nn_bonds,
+    (delta, qn1, qn2) -> qn1.spin == qn2.spin ? -1.0 : 0.0)
+
+# V Σ_{i≠j, σσ'} n_{iσ} n_{jσ'} 
+twobody = generate_twobody(dofs, nn_bonds,
+    (deltas, qn1, qn2, qn3, qn4) ->
+        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? 4.0 : 0.0)
+
+ks = build_kpoints([[2.0, 0.0], [0.0, 2.0]], (2, 2))
+
+result = solve_hfk(dofs, onebody, twobody, ks, 16)
 ```
 
 ```
 ============================================================
-Hartree-Fock SCF Solver
+Hartree-Fock SCF Solver (momentum space)
 ============================================================
-Building Hamiltonian  (144 operators)
-           t matrix: (32, 32), nnz = 128      229.196ms
-           U matrix: (1024, 1024), nnz = 64        29.206ms
-System: N = 32, blocks = 1, particles = [16] (total = 16)
-T = 0,  mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
-Restarts: 10
+  Nk = 4,  d = 8,  n_electrons = 16,  T = 0
+  mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
 ============================================================
-  Restart  1: E = -10.4979817905  (CONVERGED, 129 iters)
-  Restart  2: E = -12.5665594104  (CONVERGED, 17 iters)
-  Restart  3: E = -12.5665576904  (CONVERGED, 21 iters)
-  Restart  4: E = -12.5665597585  (CONVERGED, 19 iters)
-  Restart  5: E = -12.5665661434  (CONVERGED, 22 iters)
-  Restart  6: E = -12.5665486867  (CONVERGED, 26 iters)
-  Restart  7: E = -10.2971741891  (CONVERGED, 172 iters)
-  Restart  8: E = -12.5665534178  (CONVERGED, 22 iters)
-  Restart  9: E = -11.4002111362  (CONVERGED, 57 iters)
-  Restart 10: E = -12.5665474992  (CONVERGED, 15 iters)
+[23:25:44]  T(r): 6 terms   357.584μs
+[23:25:44]  V(r): 5 triples   557.208μs
+[23:25:44] G initialized    39.417μs
+[23:25:44] Iter    1  res = 1.563e-02  E = -6.193238  NCond = 4.0000
+[23:25:44] Iter   10  res = 3.392e-09 < 1.000e-08  CONVERGED
 ============================================================
-Best result from 10 restarts:
-SCF CONVERGED  (22 iterations)
-  Band energy:        -4.5075083501
-  Interaction energy: -8.0590577933
-  Total energy:       -12.5665661434
-  NCond:              16.000000
-  Sz:                 -0.000009
-  μ (block 1):       +1.9999994130
+[23:25:44] SCF CONVERGED  (10 iterations)
+  Band energy:        -0.0095358050
+  Interaction energy: -0.5570200781
+  Total energy:       -0.5665558830
+  NCond:              4.000000
+  μ:                  +16.0000000000
 
-  ── Timing Summary ────────────────────────────────────────────
-  Phase                      Total         Avg   Calls
-  ────────────────────────────────────────────────────────
-  build_T                229.196ms   229.196ms       1
-  build_U                 29.206ms    29.206ms       1
-  initialize_green       151.063ms    15.106ms      10
-  build_h_eff              1.283ms     2.566μs     500
-  diagonalize             51.957ms   103.914μs     500
-  update_green             2.222ms     4.443μs     500
-  calc_energies            1.041ms     2.124μs     490
-  ────────────────────────────────────────────────────────
-  solve_hf (total)         2.109 s      2.109 s        1
-  ────────────────────────────────────────────────────────
+  ── Timing Summary (k-space HF) ───────────────────────────
+  Phase                        Total         Avg   Calls
+  ──────────────────────────────────────────────────────────
+  build_Tr                 357.584μs   357.584μs       1
+  build_Tk                   7.625μs     7.625μs       1
+  build_Vr                 557.208μs   557.208μs       1
+  initialize_green_k        39.417μs    39.417μs       1
+  build_heff_k               4.792ms   479.237μs      10
+  diagonalize_k              4.512ms   451.200μs      10
+  update_green_k           643.875μs    64.387μs      10
+  calc_energies_k           56.251μs    28.125μs       2
+  ──────────────────────────────────────────────────────────
+  solve_hfk (total)         18.799ms    18.799ms       1
+  ──────────────────────────────────────────────────────────
 ```
-
-> **NOTE** Declaring spin as a symmetry block (Cases 1–2 vs 3–4) halves the number of non-zeros in the interaction matrix (nnz 64 → 32), which reduces memory and speeds up each SCF iteration. However, this comes with an important caveat: enforcing spin conservation at the density-matrix level means the Green's function is constrained to be strictly block-diagonal throughout the iteration — off-diagonal spin correlations are permanently forbidden, not just absent at convergence. As a result, the blocked solver cannot use spin-mixed intermediate configurations as transient pathways to escape local minima in the energy landscape. The unblocked solver, by contrast, has full freedom in the density matrix during the SCF and can reach the global minimum via spin-mixed intermediates. The multi-restart statistics make this concrete: in 10 runs the unblocked solver finds the global minimum ($E \approx -12.57$) 7 out of 10 times (Case 4), while the blocked solver finds it only 1 out of 10 times (Case 2). The practical recommendation is to use block structure for efficiency, but always pair it with `n_restarts` to compensate for the reduced basin of attraction of the global minimum.
 
 ## Package Structure
 
