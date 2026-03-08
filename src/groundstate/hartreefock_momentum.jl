@@ -972,7 +972,7 @@ function _run_scf_k(
         end
     end
 
-    ncond = real(sum(G_k[ki,a,a] for ki in 1:Nk, a in 1:d)) / Nk
+    ncond = real(sum(G_k[a,a,ki] for a in 1:d, ki in 1:Nk)) / Nk
     return (G_k=G_k, eigenvalues=evals, eigenvectors=evecs,
             energies=energies, mu=mu,
             converged=converged, iterations=iter, residual=residual, ncond=ncond)

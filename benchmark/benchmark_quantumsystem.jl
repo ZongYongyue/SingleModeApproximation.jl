@@ -43,7 +43,7 @@ sus = generate_twobody(dofs, sbonds(latt, (:o,:o), 0),
         (qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital) &&
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? 6.0 : 0.0
     ,
-    order = (cdag, 1, c, 1, cdag, 1, c, 1)
+    order = (cdag, :i, c, :i, cdag, :i, c, :i)
     )
 sups = generate_twobody(dofs, sbonds(latt, (:o,:o), 0), 
     (delta, qn1, qn2, qn3, qn4) ->
@@ -52,7 +52,7 @@ sups = generate_twobody(dofs, sbonds(latt, (:o,:o), 0),
         (qn1.spin, qn3.spin) == (qn2.spin, qn4.spin) &&
         (qn1.spin !== qn3.spin) ? 3.6 : 0.0
     ,
-    order = (cdag, 1, c, 1, cdag, 1, c, 1)
+    order = (cdag, :i, c, :i, cdag, :i, c, :i)
     )
 sujs = generate_twobody(dofs, sbonds(latt, (:o,:o), 0), 
     (delta, qn1, qn2, qn3, qn4) ->
@@ -61,7 +61,7 @@ sujs = generate_twobody(dofs, sbonds(latt, (:o,:o), 0),
         (qn1.spin, qn3.spin) == (qn2.spin, qn4.spin) &&
         (qn1.spin == qn3.spin) ? 2.4 : 0.0
     ,
-    order = (cdag, 1, c, 1, cdag, 1, c, 1)
+    order = (cdag, :i, c, :i, cdag, :i, c, :i)
     )
 sjs1 = generate_twobody(dofs, sbonds(latt, (:o,:o), 0), 
     (delta, qn1, qn2, qn3, qn4) ->
@@ -69,7 +69,7 @@ sjs1 = generate_twobody(dofs, sbonds(latt, (:o,:o), 0),
         (qn1.orbital !== qn2.orbital) &&
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,2,2,1) ? 1.2 : 0.0
     ,
-    order = (cdag, 1, cdag, 1, c, 1, c, 1)
+    order = (cdag, :i, cdag, :i, c, :i, c, :i)
     )
 sjs2 = generate_twobody(dofs, sbonds(latt, (:o,:o), 0), 
     (delta, qn1, qn2, qn3, qn4) ->
@@ -77,5 +77,5 @@ sjs2 = generate_twobody(dofs, sbonds(latt, (:o,:o), 0),
         (qn1.orbital !== qn3.orbital) &&
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,2,2,1) ? 1.2 : 0.0
     ,
-    order = (cdag, 1, cdag, 1, c, 1, c, 1)
+    order = (cdag, :i, cdag, :i, c, :i, c, :i)
     )

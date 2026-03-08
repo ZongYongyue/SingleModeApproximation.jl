@@ -16,4 +16,8 @@ using SafeTestsets
     @safetestset "Hartree-Fock (real space)" begin
         include("test_hartreefock_real.jl")
     end
+
+    @safetestset "Hartree-Fock (momentum space)" begin
+        include("test_hartreefock_momentum.jl")
+    end
 end

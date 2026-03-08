@@ -79,7 +79,7 @@ end
         (deltas, qn1, qn2, qn3, qn4) ->
             (qn1.site == qn2.site == qn3.site == qn4.site) &&
             (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? 1.0 : 0.0,
-        order = (cdag, 1, c, 1, cdag, 1, c, 1)).ops
+        order = (cdag, :i, c, :i, cdag, :i, c, :i)).ops
 
     @testset "Basic functionality" begin
         U_matrix = build_U(dofs, U_ops)
@@ -164,7 +164,7 @@ end
         (deltas, qn1, qn2, qn3, qn4) ->
             (qn1.site == qn2.site == qn3.site == qn4.site) &&
             (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U_strength : 0.0,
-        order = (cdag, 1, c, 1, cdag, 1, c, 1)).ops
+        order = (cdag, :i, c, :i, cdag, :i, c, :i)).ops
 
     result = solve_hf(
         dofs,

@@ -299,106 +299,67 @@ t_inter = generate_onebody(dofs, nn_bonds,
 `generate_twobody` follows the same pattern for four-operator interaction terms, but offers additional generality:
 
 ```julia
-twobody = generate_twobody(dofs, bonds, value; order=(cdag, 1, c, 1, cdag, 2, c, 2))
+twobody = generate_twobody(dofs, bonds, value; order=(cdag, :i, c, :i, cdag, :j, c, :j))
 ```
 
 **Arguments:**
 - `value`: a `Number` or a function `(deltas, qn1, qn2, qn3, qn4) -> Number`.
-  `deltas` is generated as `deltas[i] = bond.coordinates[i] - bond.coordinates[nb]`
-  for `i = 1 … nb-1`, where `nb = length(bond.states)` is the number of bond sites
-  and the **last site is the reference (origin)**. This convention is consistent with
-  the hopping picture $c^\dagger_i c_j$ where the bond direction points from $j$ to $i$:
-  `deltas[1] = coord[1] - coord[nb]`.
-  For 1-site bonds `deltas` is empty; for 2-site bonds `deltas[1]` is the single
-  bond vector (site 1 minus site 2); for 3- or 4-site bonds all displacements from
-  the last site are provided, giving complete cluster geometry.
-- `order`: `(type1, site1, type2, site2, type3, site3, type4, site4)`.
-  Each site index refers to `bond.states[i]`; it can be 1, 2, 3, or 4 (the bond must
-  have at least that many sites). This allows all four operators to be placed on
-  any combination of sites, not just one or two.
+  `deltas[m] = coord(op_m) - coord(op_4)` for `m = 1,2,3` (always 3 entries).
+  Values depend on the current site assignment and can be used to filter by direction.
+- `order`: `(type1, label1, type2, label2, type3, label3, type4, label4)` where labels are **Symbols**
+  acting as free Einstein summation indices. Each unique Symbol is an independent position index
+  summed over all **injective assignments** to bond sites (different Symbols → different sites).
+  The number of unique Symbols must not exceed the number of sites in each bond.
 
 **Return value:** a NamedTuple `(ops, delta, irvec)`.
-- `ops`: operators already reordered to creation-annihilation alternating order (c†c c†c) with the fermionic
-  sign absorbed into the coefficient.
+- `ops`: operators already reordered to creation-annihilation alternating order (c†c c†c) with the fermionic sign absorbed into the coefficient.
 - `delta`: a `Vector{NTuple{3, SVector{D,T}}}`, where each tuple `(δ1, δ2, δ3)`
-  gives the three *physical* (Cartesian) displacements after reordering:
+  gives the three physical (Cartesian) displacements after reordering:
   $\delta_n = \mathrm{coord}(\mathrm{op}_n) - \mathrm{coord}(\mathrm{op}_4)$.
-  For onsite or density-density interactions $\delta_1 = \delta_3 = 0$.
 - `irvec`: a `Vector{NTuple{3, SVector{D,T}}}`, where each tuple `(τ1, τ2, τ3)`
-  gives the three unit-cell displacements that characterize the four-site interaction
-  under translational invariance: $\tau_n = \mathrm{icoord}(\mathrm{op}_n) - \mathrm{icoord}(\mathrm{op}_4)$.
-  For onsite or density-density interactions $\tau_1 = \tau_3 = 0$.
+  gives the three unit-cell displacements: $\tau_n = \mathrm{icoord}(\mathrm{op}_n) - \mathrm{icoord}(\mathrm{op}_4)$.
 
-**Example — onsite Hubbard $U n_\uparrow n_\downarrow$:**
+**Example — nearest-neighbor Coulomb $V \sum_{i \neq j, \sigma\sigma'} n_{i\sigma} n_{j\sigma'}$:**
 
 ```julia
+# Default order=(cdag,:i,c,:i,cdag,:j,c,:j): :i and :j independently loop over bond sites,
+# generating both n_A n_B and n_B n_A for each bond (full ordered-pair sum).
+nn_coulomb = generate_twobody(dofs, nn_bonds,
+    (deltas, qn1, qn2, qn3, qn4) ->
+        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? V : 0.0)
+```
+
+**Example — onsite Hubbard $U \sum_i n_{i\uparrow} n_{i\downarrow}$:**
+
+```julia
+# order=(cdag,:i,c,:i,cdag,:i,c,:i): single label :i, all operators at the same site.
+# For 1-site bonds (onsite_bonds), only one assignment exists.
 hubbard = generate_twobody(dofs, onsite_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        qn1.orbital == qn2.orbital == qn3.orbital == qn4.orbital &&
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U : 0.0,
-    order = (cdag, 1, c, 1, cdag, 1, c, 1))
-# hubbard is a NamedTuple:
-#   hubbard.ops   → Vector{Operators} in creation-annihilation alternating order (c†c c†c) with fermionic sign absorbed
-#   hubbard.delta → Vector{NTuple{3,SVector{D,T}}}; each tuple (δ1,δ2,δ3) gives
-#                   physical displacements of operators 1,2,3 relative to operator 4.
-#                   For onsite Hubbard: all δ = zero(SVector{D,T}) (all on same site).
-#   hubbard.irvec → Vector{NTuple{3,SVector{D,T}}}; each tuple (τ1,τ2,τ3) gives
-#                   unit-cell displacements of operators 1,2,3 relative to operator 4.
-#                   For onsite Hubbard: all τ = zero(SVector{D,T}) (all on same site).
+    order = (cdag, :i, c, :i, cdag, :i, c, :i))
 ```
 
-**Example — nearest-neighbor density-density interaction along x only:**
+**Example — Hund's pair hopping $J \sum_{i \neq j} c^\dagger_{i\uparrow} c^\dagger_{i\downarrow} c_{j\downarrow} c_{j\uparrow}$:**
 
 ```julia
-nn_coulomb = generate_twobody(dofs, nn_bonds,
-    (deltas, qn1, qn2, qn3, qn4) -> deltas[1] ≈ [1.0, 0.0] ? V : 0.0)
-# For a 2-site bond: deltas = [bond.coordinates[1] - bond.coordinates[2]]
-# i.e. the vector from the second site to the first — only +x bonds (deltas[1]=[1,0]) pass the filter
-# nn_coulomb.ops   → Vector{Operators} for +x direction bonds only
-# nn_coulomb.delta → (δ1,δ2,δ3) where δ1=δ3=0 and δ2 encodes the physical shift between the two sites
-# nn_coulomb.irvec → (τ1,τ2,τ3) where τ1=τ3=0 and τ2 encodes the unit-cell shift between the two sites
-```
-
-**Example — Hund's pair hopping $J c^\dagger_{m\uparrow} c^\dagger_{m\downarrow} c_{m'\downarrow} c_{m'\uparrow}$:**
-
-```julia
-hund = generate_twobody(dofs, onsite_bonds,
+# order=(cdag,:i,cdag,:i,c,:j,c,:j): pair created at :i, annihilated at :j.
+hund = generate_twobody(dofs, nn_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        (qn1.orbital, qn3.orbital) == (qn2.orbital, qn4.orbital) &&
-        qn1.orbital != qn3.orbital &&
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 2, 2, 1) ? J : 0.0,
-    order = (cdag, 1, cdag, 1, c, 1, c, 1))
-# hund.ops   → Vector{Operators} with reordering sign from c†c†cc → creation-annihilation alternating order (c†c c†c)
-# hund.delta → all (0,0,0) SVectors since all operators are on the same site
-# hund.irvec → all (0,0,0) SVectors since all operators are on the same site
+    order = (cdag, :i, cdag, :i, c, :j, c, :j))
 ```
 
-**Example — four-site ring exchange $K c^\dagger_1 c_4 c^\dagger_3 c_2$ (distinct sites):**
-
-For interactions where all four operators sit on *different* lattice sites a 4-site bond is needed. The site indices in `order` map directly to `bond.states[i]`, so any permutation of sites 1–4 is valid:
+**Example — NN Coulomb along x only (filter by direction):**
 
 ```julia
-# Build 4-site plaquette bonds (e.g., corners of a square unit cell)
-plaquette_bonds = bonds(lattice, (:p, :p), [1, 2, 3])  # collect all up to 3rd-neighbor to form plaquettes
-# (or construct Bond objects manually for exact 4-site clusters)
-
-ring = generate_twobody(dofs, plaquette_bonds,
+# deltas[1] = coord(:i site) - coord(:j site); filter keeps only |Δx|=1, Δy=0.
+nn_x = generate_twobody(dofs, nn_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        qn1.spin == qn2.spin == qn3.spin == qn4.spin ? K : 0.0,
-    order = (cdag, 1, c, 4, cdag, 3, c, 2))
-# order = (cdag,1, c,4, cdag,3, c,2) means:
-#   operator 1: c†  at bond.states[1], coord = bond.coordinates[1], icoord = bond.icoordinates[1]
-#   operator 2: c   at bond.states[4], coord = bond.coordinates[4], icoord = bond.icoordinates[4]
-#   operator 3: c†  at bond.states[3], coord = bond.coordinates[3], icoord = bond.icoordinates[3]
-#   operator 4: c   at bond.states[2], coord = bond.coordinates[2], icoord = bond.icoordinates[2]
-# After reordering to creation-annihilation alternating order (c†c c†c), τ1,τ2,τ3 are computed from the
-# icoordinates of the reordered operators relative to the 4th one.
-# ring.ops   → Vector{Operators} with all four operators on distinct lattice sites
-# ring.delta → non-trivial (δ1,δ2,δ3) encoding the full 4-site cluster geometry (physical coords)
-# ring.irvec → non-trivial (τ1,τ2,τ3) encoding the full 4-site cluster geometry (unit-cell coords)
+        abs(deltas[1][1]) ≈ 1.0 && iszero(deltas[1][2]) ? V : 0.0)
 ```
 
-The `value` function mechanism makes all these variants — and arbitrary combinations of them — expressible without any modifications to the library. Physical constraints (spin conservation, orbital selection, direction filtering, multi-site geometry) are encoded entirely in user-supplied anonymous functions.
+The `value` function mechanism makes all these variants expressible without any modifications to the library. Physical constraints (spin conservation, orbital selection, direction filtering) are encoded entirely in user-supplied anonymous functions.
 
 ### Building matrices
 
