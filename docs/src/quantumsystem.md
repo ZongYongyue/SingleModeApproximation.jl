@@ -252,9 +252,9 @@ displacement, which is passed directly to `build_Tr` for momentum-space HF.
 t_onebody = generate_onebody(dofs, nn_bonds,
     (delta, qn1, qn2) -> qn1.spin == qn2.spin ? -1.0 : 0.0)
 # t_onebody is a NamedTuple with three parallel vectors:
-#   t_onebody.ops   → Vector{Operators}       (one entry per generated term; hc=true doubles the count)
-#   t_onebody.delta → Vector{Vector{Float64}} (physical bond vector for each term)
-#   t_onebody.irvec → Vector{Vector{Float64}} (unit-cell displacement R for each term; used by build_Tr)
+#   t_onebody.ops   → Vector{Operators}        (one entry per generated term; hc=true doubles the count)
+#   t_onebody.delta → Vector{SVector{D,T}}     (physical bond vector for each term)
+#   t_onebody.irvec → Vector{SVector{D,T}}     (unit-cell displacement R for each term; used by build_Tr)
 t_ops = t_onebody.ops
 ```
 
@@ -271,8 +271,8 @@ t2_onebody = generate_onebody(dofs, nnn_bonds,
         return (0.81 + 1.32im) * (tau * nu)
     end)
 # t2_onebody.ops   → Vector{Operators} with complex coefficients
-# t2_onebody.delta → Vector{Vector{Float64}} encoding bond direction (used above for nu)
-# t2_onebody.irvec → Vector{Vector{Float64}} encoding lattice vector R
+# t2_onebody.delta → Vector{SVector{D,T}} encoding bond direction (used above for nu)
+# t2_onebody.irvec → Vector{SVector{D,T}} encoding lattice vector R
 t2_ops = t2_onebody.ops
 ```
 
@@ -317,10 +317,14 @@ twobody = generate_twobody(dofs, bonds, value; order=(cdag, 1, c, 1, cdag, 2, c,
   have at least that many sites). This allows all four operators to be placed on
   any combination of sites, not just one or two.
 
-**Return value:** a NamedTuple `(ops, irvec)`.
+**Return value:** a NamedTuple `(ops, delta, irvec)`.
 - `ops`: operators already reordered to creation-annihilation alternating order (c†c c†c) with the fermionic
   sign absorbed into the coefficient.
-- `irvec`: a `Vector{NTuple{3, Vector{Float64}}}`, where each tuple `(τ1, τ2, τ3)`
+- `delta`: a `Vector{NTuple{3, SVector{D,T}}}`, where each tuple `(δ1, δ2, δ3)`
+  gives the three *physical* (Cartesian) displacements after reordering:
+  $\delta_n = \mathrm{coord}(\mathrm{op}_n) - \mathrm{coord}(\mathrm{op}_4)$.
+  For onsite or density-density interactions $\delta_1 = \delta_3 = 0$.
+- `irvec`: a `Vector{NTuple{3, SVector{D,T}}}`, where each tuple `(τ1, τ2, τ3)`
   gives the three unit-cell displacements that characterize the four-site interaction
   under translational invariance: $\tau_n = \mathrm{icoord}(\mathrm{op}_n) - \mathrm{icoord}(\mathrm{op}_4)$.
   For onsite or density-density interactions $\tau_1 = \tau_3 = 0$.
@@ -335,9 +339,12 @@ hubbard = generate_twobody(dofs, onsite_bonds,
     order = (cdag, 1, c, 1, cdag, 1, c, 1))
 # hubbard is a NamedTuple:
 #   hubbard.ops   → Vector{Operators} in creation-annihilation alternating order (c†c c†c) with fermionic sign absorbed
-#   hubbard.irvec → Vector{NTuple{3,Vector{Float64}}}; each tuple (τ1,τ2,τ3) gives
+#   hubbard.delta → Vector{NTuple{3,SVector{D,T}}}; each tuple (δ1,δ2,δ3) gives
+#                   physical displacements of operators 1,2,3 relative to operator 4.
+#                   For onsite Hubbard: all δ = zero(SVector{D,T}) (all on same site).
+#   hubbard.irvec → Vector{NTuple{3,SVector{D,T}}}; each tuple (τ1,τ2,τ3) gives
 #                   unit-cell displacements of operators 1,2,3 relative to operator 4.
-#                   For onsite Hubbard: all τ = [0.0, 0.0] (all on same site).
+#                   For onsite Hubbard: all τ = zero(SVector{D,T}) (all on same site).
 ```
 
 **Example — nearest-neighbor density-density interaction along x only:**
@@ -348,7 +355,8 @@ nn_coulomb = generate_twobody(dofs, nn_bonds,
 # For a 2-site bond: deltas = [bond.coordinates[1] - bond.coordinates[2]]
 # i.e. the vector from the second site to the first — only +x bonds (deltas[1]=[1,0]) pass the filter
 # nn_coulomb.ops   → Vector{Operators} for +x direction bonds only
-# nn_coulomb.irvec → (τ1,τ2,τ3) where τ1=τ3=[0,0] and τ2 encodes the unit-cell shift between the two sites
+# nn_coulomb.delta → (δ1,δ2,δ3) where δ1=δ3=0 and δ2 encodes the physical shift between the two sites
+# nn_coulomb.irvec → (τ1,τ2,τ3) where τ1=τ3=0 and τ2 encodes the unit-cell shift between the two sites
 ```
 
 **Example — Hund's pair hopping $J c^\dagger_{m\uparrow} c^\dagger_{m\downarrow} c_{m'\downarrow} c_{m'\uparrow}$:**
@@ -361,7 +369,8 @@ hund = generate_twobody(dofs, onsite_bonds,
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 2, 2, 1) ? J : 0.0,
     order = (cdag, 1, cdag, 1, c, 1, c, 1))
 # hund.ops   → Vector{Operators} with reordering sign from c†c†cc → creation-annihilation alternating order (c†c c†c)
-# hund.irvec → all ([0,0],[0,0],[0,0]) since all operators are on the same site
+# hund.delta → all (0,0,0) SVectors since all operators are on the same site
+# hund.irvec → all (0,0,0) SVectors since all operators are on the same site
 ```
 
 **Example — four-site ring exchange $K c^\dagger_1 c_4 c^\dagger_3 c_2$ (distinct sites):**
@@ -385,7 +394,8 @@ ring = generate_twobody(dofs, plaquette_bonds,
 # After reordering to creation-annihilation alternating order (c†c c†c), τ1,τ2,τ3 are computed from the
 # icoordinates of the reordered operators relative to the 4th one.
 # ring.ops   → Vector{Operators} with all four operators on distinct lattice sites
-# ring.irvec → non-trivial (τ1,τ2,τ3) encoding the full 4-site cluster geometry
+# ring.delta → non-trivial (δ1,δ2,δ3) encoding the full 4-site cluster geometry (physical coords)
+# ring.irvec → non-trivial (τ1,τ2,τ3) encoding the full 4-site cluster geometry (unit-cell coords)
 ```
 
 The `value` function mechanism makes all these variants — and arbitrary combinations of them — expressible without any modifications to the library. Physical constraints (spin conservation, orbital selection, direction filtering, multi-site geometry) are encoded entirely in user-supplied anonymous functions.
@@ -413,5 +423,5 @@ For mean-field calculations the interaction is more efficiently accessed through
 | `SystemDofs` | Arbitrary DOF names and sizes; `constraint` prunes the state space; nested `sortrule` creates block-diagonal structure for conserved quantum numbers |
 | `Lattice` / `Bond` | Any unit-cell geometry; tiling constructor handles PBC automatically; `icoordinates` carries unit-cell origin information needed for Bloch-space calculations |
 | `generate_onebody` | `delta`-aware value function for direction-dependent coefficients; `hc=true` for automatic Hermitian conjugate; returns `(ops, delta, irvec)` |
-| `generate_twobody` | 1–4 site bonds; `deltas` vector for full cluster geometry; arbitrary operator ordering; returns operators in creation-annihilation alternating order with `(τ1, τ2, τ3)` displacement metadata |
+| `generate_twobody` | 1–4 site bonds; `deltas` vector for full cluster geometry; arbitrary operator ordering; returns `(ops, delta, irvec)` where operators are in creation-annihilation alternating order, `delta` holds physical position differences `(δ1,δ2,δ3)`, and `irvec` holds unit-cell displacements `(τ1,τ2,τ3)`; all vectors are `SVector{D,T}` |
 | `build_*` | Sparse matrix/tensor construction; specialized paths in HF solvers avoid dense $N^4$ tensors |

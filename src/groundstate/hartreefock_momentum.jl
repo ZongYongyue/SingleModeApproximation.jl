@@ -1035,7 +1035,7 @@ For broken-symmetry phases (AFM, CDW, …) pass an enlarged magnetic unit cell.
 - `max_iter::Int = 1000`
 - `tol::Float64 = 1e-8`: Convergence threshold ‖ΔG‖_F / (Nk·d²).
 - `diis_m::Int = 8`: DIIS history window (0 = disabled).
-- `G_init = nothing`: Initial G_k of shape `(Nk, d, d)`; random if `nothing`.
+- `G_init = nothing`: Initial G_k of shape `(d, d, Nk)`; random if `nothing`.
 - `ene_cutoff::Float64 = 100.0`
 - `n_restarts::Int = 1`: Random restarts; returns lowest-energy converged result.
 - `seed::Union{Nothing,Int} = nothing`
