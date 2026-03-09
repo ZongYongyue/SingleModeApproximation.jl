@@ -4,12 +4,12 @@ using MeanFieldTheories
 makedocs(;
     modules=[MeanFieldTheories],
     authors="Yong-Yue Zong",
-    repo="https://github.com/ZongYongyue/MeanFieldTheories.jl/blob/{commit}{path}#{line}",
+    repo="https://github.com/Quantum-Many-Body/MeanFieldTheories.jl/blob/{commit}{path}#{line}",
     sitename="MeanFieldTheories.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://ZongYongyue.github.io/MeanFieldTheories.jl",
-        repolink="https://github.com/ZongYongyue/MeanFieldTheories.jl",
+        canonical="https://Quantum-Many-Body.github.io/MeanFieldTheories.jl",
+        repolink="https://github.com/Quantum-Many-Body/MeanFieldTheories.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -28,7 +28,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/ZongYongyue/MeanFieldTheories.jl",
+    repo="github.com/Quantum-Many-Body/MeanFieldTheories.jl",
     devbranch="main",
     push_preview=true,
 )
