@@ -216,7 +216,7 @@ both following Julia's column-major convention (i.e. `vec(M)[α+(β-1)*d] == M[�
 
 Once `U_func = build_Uk(V_k)`, the HF self-energy is
 
-    Σ(q) = (1/(2Nk)) Σ_k reshape(U_func(k, q) * vec(G(k)), d, d)
+    Σ(q) = (1/Nk) Σ_k reshape(U_func(k, q) * vec(G(k)), d, d)
 
 Returns `nothing` if `V_k` is `nothing`.
 """
@@ -316,13 +316,13 @@ Assemble the Hartree and Fock real-space kernels for Case A interactions
 Using free indices (a,b) and summation indices (c,d):
 
 **Hartree** (q-independent, contracted with Ḡ^{cd}):
-    Σ_H^{ab} = (1/2) Σ_{cd} [W̃^{cdab}(0) + W̃^{abcd}(0)] Ḡ^{cd}
+    Σ_H^{ab} = Σ_{cd} [W̃^{cdab}(0) + W̃^{abcd}(0)] Ḡ^{cd}
     hartree[a,b,c,d] = Σ_r [ permutedims(W(r),(3,4,1,2)) + W(r) ]
                              ─────────────────────────────
                               W^{cdab}(r)       W^{abcd}(r)
 
 **Fock** (FFT, contracted with G^{cd}(r) then transformed to q):
-    Σ_F^{ab}(q) = -(1/2) FFT_r[ Σ_{cd} [W^{cbad}(r) + W^{adcb}(-r)] G^{cd}(r) ]
+    Σ_F^{ab}(q) = -FFT_r[ Σ_{cd} [W^{cbad}(r) + W^{adcb}(-r)] G^{cd}(r) ]
 Using hermiticity W^{abcd}(-r) = conj(W^{dcba}(r)), one obtains W^{adcb}(-r) = conj(W^{bcda}(r)):
     fock.mats[n][a,b,c,d] = permutedims(W(r),(3,2,1,4)) + conj(permutedims(W(r),(4,1,2,3)))
                              ────────────────────────────   ──────────────────────────────────
@@ -360,7 +360,7 @@ Assemble the Hartree and Fock real-space kernels for Case B interactions
 (exchange-type, τ1=0, τ2=τ3=τ). See Theory §6.2. Case B is the complement of Case A.
 
 **Hartree** (FFT, contracted with G^{cd}(r) then transformed to q):
-    Σ_H^{ab}(q) = (1/2) FFT_r[ Σ_{cd} [W^{cdab}(-r) + W^{abcd}(r)] G^{cd}(r) ]
+    Σ_H^{ab}(q) = FFT_r[ Σ_{cd} [W^{cdab}(-r) + W^{abcd}(r)] G^{cd}(r) ]
 Case B hermiticity: [W^{abcd}(τ)]* = W^{badc}(-τ)  (note: -τ, unlike Case A).
 Derivation of W^{cdab}(-r) = conj(W^{dcba}(r)):
   substitute a→d,b→c,c→b,d→a in the hermiticity relation:
@@ -371,7 +371,7 @@ Derivation of W^{cdab}(-r) = conj(W^{dcba}(r)):
     hartree.delta[n] = τ (= τ2 = τ3 of the taus triple)
 
 **Fock** (q-independent, contracted with Ḡ^{cd}):
-    Σ_F^{ab} = -(1/2) Σ_{cd} [W̃^{cbad}(0) + W̃^{adcb}(0)] Ḡ^{cd}
+    Σ_F^{ab} = -Σ_{cd} [W̃^{cbad}(0) + W̃^{adcb}(0)] Ḡ^{cd}
     fock[a,b,c,d] = Σ_r [ permutedims(W(r),(3,2,1,4)) + permutedims(W(r),(1,4,3,2)) ]
                           ────────────────────────────   ──────────────────────────────
                            W^{cbad}(r)                   W^{adcb}(r)
@@ -408,7 +408,7 @@ Assemble the real-space kernels for Case C interactions
 
 The full self-energy is:
 
-    Σ^{ab}(q) = (1/2) Σ_τ Σ_{cd} K^{ab,cd}(τ) · G^{cd}(-τ) · exp(iq·τ)
+    Σ^{ab}(q) = Σ_τ Σ_{cd} K^{ab,cd}(τ) · G^{cd}(-τ) · exp(iq·τ)
 
 where K is split into Hartree and Fock channels:
 
@@ -659,7 +659,7 @@ function build_heff_k!(
     # f_buf is read-only during the threaded section; H_k[:,:,qi] unique per qi.
     function _accum_q!(sign::Int, τ::Vector{Float64})
         Threads.@threads for qi in 1:Nk
-            phase = sign * cis(dot(kpoints[qi], τ)) * 0.5
+            phase = sign * cis(dot(kpoints[qi], τ))
             @inbounds for j in 1:d, i in 1:d
                 H_k[i, j, qi] += f_buf[i + (j-1)*d] * phase
             end
@@ -668,16 +668,16 @@ function build_heff_k!(
 
     # ── Case A: density-density ──
     if wr_A !== nothing
-        # Hartree (q-independent): +½ K_H · vec(G̅)
+        # Hartree (q-independent): +K_H · vec(G̅)
         if wr_A.hartree !== nothing
             mul!(f_buf, wr_A.hartree, vec(G_bar))
             Threads.@threads for qi in 1:Nk
                 @inbounds for j in 1:d, i in 1:d
-                    H_k[i, j, qi] += f_buf[i + (j-1)*d] * 0.5
+                    H_k[i, j, qi] += f_buf[i + (j-1)*d]
                 end
             end
         end
-        # Fock (q-dependent): -½ Σ_τ K(τ) · vec(G(τ)) · exp(iq·τ)
+        # Fock (q-dependent): -Σ_τ K(τ) · vec(G(τ)) · exp(iq·τ)
         if include_fock && wr_A.fock.mats !== nothing
             for (K, τ) in zip(wr_A.fock.mats, wr_A.fock.delta)
                 mul!(f_buf, K, vec(G_taus_buf[tau_idx[τ]]))
@@ -688,19 +688,19 @@ function build_heff_k!(
 
     # ── Case B: exchange-type ──
     if wr_B !== nothing
-        # Hartree (q-dependent): +½ Σ_τ K(τ) · vec(G(τ)) · exp(iq·τ)
+        # Hartree (q-dependent): +Σ_τ K(τ) · vec(G(τ)) · exp(iq·τ)
         if wr_B.hartree.mats !== nothing
             for (K, τ) in zip(wr_B.hartree.mats, wr_B.hartree.delta)
                 mul!(f_buf, K, vec(G_taus_buf[tau_idx[τ]]))
                 _accum_q!(+1, τ)
             end
         end
-        # Fock (q-independent): -½ K_F · vec(G̅)
+        # Fock (q-independent): -K_F · vec(G̅)
         if include_fock && wr_B.fock !== nothing
             mul!(f_buf, wr_B.fock, vec(G_bar))
             Threads.@threads for qi in 1:Nk
                 @inbounds for j in 1:d, i in 1:d
-                    H_k[i, j, qi] -= f_buf[i + (j-1)*d] * 0.5
+                    H_k[i, j, qi] -= f_buf[i + (j-1)*d]
                 end
             end
         end
@@ -731,7 +731,7 @@ function build_heff_k!(
         for (qi, q) in enumerate(kpoints)
             for (ki, k) in enumerate(kpoints)
                 U = U_func(k, q)
-                @view(H_k[:,:,qi]) .+= reshape(U * vec(@view G_k[:,:,ki]), d, d) ./ (2Nk)
+                @view(H_k[:,:,qi]) .+= reshape(U * vec(@view G_k[:,:,ki]), d, d) ./ Nk
             end
         end
     end

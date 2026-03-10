@@ -6,7 +6,9 @@
 
 Consider the Coulomb interaction Hamiltonian projected onto a Wannier basis, written in **creation-annihilation alternating order**:
 
-$$H_{\text{int}} = \frac{1}{2}\sum_{ijkl}\sum_{abcd} V^{abcd}_{ijkl}\, c^\dagger_{ia}\,c_{jb}\,c^\dagger_{kc}\,c_{ld}$$
+$$H_{\text{int}} = \sum_{ijkl}\sum_{abcd} V^{abcd}_{ijkl}\, c^\dagger_{ia}\,c_{jb}\,c^\dagger_{kc}\,c_{ld}$$
+
+> **NOTE** Here we **do not** build a fixed $\tfrac{1}{2}$ symmetry factor into the Hartree-Fock machinery. If you want the conventional $\tfrac{1}{2}$, include it directly in the interaction coefficients passed to `generate_twobody` (for example, use `value = 0.5 * V`). This keeps the operator representation and the numerical Hamiltonian consistent.
 
 where $i,j,k,l$ are site indices (each summed independently) and $a,b,c,d$ label all internal degrees of freedom (orbital, spin, etc.). The interaction matrix element is defined as
 
@@ -61,7 +63,7 @@ w^*_c(\mathbf{r}_2-\boldsymbol{\tau}_3)\,w_d(\mathbf{r}_2)
 
 The Hamiltonian becomes
 
-$$H_{\text{int}} = \frac{1}{2}\sum_l\sum_{\boldsymbol{\tau}_1\boldsymbol{\tau}_2\boldsymbol{\tau}_3}\sum_{abcd}
+$$H_{\text{int}} = \sum_l\sum_{\boldsymbol{\tau}_1\boldsymbol{\tau}_2\boldsymbol{\tau}_3}\sum_{abcd}
 \bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3)\,
 c^\dagger_{l+\tau_1,\,a}\,c_{l+\tau_2,\,b}\,c^\dagger_{l+\tau_3,\,c}\,c_{l,d}$$
 
@@ -90,9 +92,9 @@ $$\widetilde{V}^{abcd}(\mathbf{k}_1,\mathbf{k}_2,\mathbf{k}_3)
 \bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3)\,
 e^{-i\mathbf{k}_1\cdot\boldsymbol{\tau}_1 +i\mathbf{k}_2\cdot\boldsymbol{\tau}_2 -i\mathbf{k}_3\cdot\boldsymbol{\tau}_3}$$
 
-The overall prefactor becomes $\frac{1}{2N^2}\cdot N = \frac{1}{2N}$, giving the $k$-space Hamiltonian:
+The overall prefactor becomes $\frac{1}{N^2}\cdot N = \frac{1}{N}$, giving the $k$-space Hamiltonian:
 
-$$\boxed{H_{\text{int}} = \frac{1}{2N}\sum_{\mathbf{k}_1\mathbf{k}_2\mathbf{k}_3}\sum_{abcd}
+$$\boxed{H_{\text{int}} = \frac{1}{N}\sum_{\mathbf{k}_1\mathbf{k}_2\mathbf{k}_3}\sum_{abcd}
 \widetilde{V}^{abcd}(\mathbf{k}_1,\mathbf{k}_2,\mathbf{k}_3)\,
 c^\dagger_{\mathbf{k}_1 a}\,c_{\mathbf{k}_2 b}\,c^\dagger_{\mathbf{k}_3 c}\,c_{\mathbf{k}_4 d}}$$
 
@@ -164,7 +166,7 @@ $$H_{\text{MF}} = \sum_{\mathbf{q}}\sum_{ab} \Sigma^{ab}(\mathbf{q})\,c^\dagger_
 
 Collecting contributions from all four contraction channels (tracing through §3.3 with $a,b$ as the free output indices of $\Sigma^{ab}$ and $c,d$ as dummy summation indices), the **Hartree-Fock self-energy** is
 
-$$\boxed{\Sigma^{ab}(\mathbf{q}) = \frac{1}{2N}\sum_{\mathbf{k}}\sum_{cd}
+$$\boxed{\Sigma^{ab}(\mathbf{q}) = \frac{1}{N}\sum_{\mathbf{k}}\sum_{cd}
 \Bigl[
 \underbrace{
 \widetilde{V}^{cdab}(\mathbf{k},\mathbf{k},\mathbf{q})
@@ -243,13 +245,13 @@ Substituting into the four self-energy channels (using $a,b$ as free indices and
 
 **Hartree** ($\mathbf{q}$-independent):
 
-$$\Sigma_H^{ab} = \frac{1}{2}\sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{0})+\widetilde{W}^{abcd}(\mathbf{0})\right]\bar{G}^{cd}$$
+$$\Sigma_H^{ab} = \sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{0})+\widetilde{W}^{abcd}(\mathbf{0})\right]\bar{G}^{cd}$$
 
 where $\bar{G}^{cd} = \frac{1}{N}\sum_\mathbf{k}G^{cd}(\mathbf{k}) = G^{cd}(\mathbf{r}=\mathbf{0})$ is the on-site Green's function.
 
 **Fock** (FFT-acceleratable via convolution theorem):
 
-$$\Sigma_F^{ab}(\mathbf{q}) = -\frac{1}{2}\mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}\left[W^{cbad}(\mathbf{r})+W^{adcb}(-\mathbf{r})\right]G^{cd}(\mathbf{r})\right]$$
+$$\Sigma_F^{ab}(\mathbf{q}) = -\mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}\left[W^{cbad}(\mathbf{r})+W^{adcb}(-\mathbf{r})\right]G^{cd}(\mathbf{r})\right]$$
 
 Real-space kernel: Fock 1 contributes $W^{cbad}(\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (standard convolution, argument $\mathbf{q}-\mathbf{k}$); Fock 2 contributes $W^{adcb}(-\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (cross-correlation, argument $\mathbf{k}-\mathbf{q}$). They share the same FFT after summing the two $W$ kernels pointwise.
 
@@ -275,15 +277,15 @@ The channel structure is the complement of Case A:
 
 **Hartree** (FFT-acceleratable):
 
-$$\Sigma_H^{ab}(\mathbf{q}) = \frac{1}{2N}\sum_{\mathbf{k}}\sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{k}-\mathbf{q})+\widetilde{W}^{abcd}(\mathbf{q}-\mathbf{k})\right]G^{cd}(\mathbf{k})$$
+$$\Sigma_H^{ab}(\mathbf{q}) = \frac{1}{N}\sum_{\mathbf{k}}\sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{k}-\mathbf{q})+\widetilde{W}^{abcd}(\mathbf{q}-\mathbf{k})\right]G^{cd}(\mathbf{k})$$
 
-$$= \mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\frac{1}{2}\sum_{cd}\left[W^{cdab}(-\mathbf{r})+W^{abcd}(\mathbf{r})\right]G^{cd}(\mathbf{r})\right]$$
+$$= \mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}\left[W^{cdab}(-\mathbf{r})+W^{abcd}(\mathbf{r})\right]G^{cd}(\mathbf{r})\right]$$
 
 Real-space kernel: H1 gives $W^{cdab}(-\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (cross-correlation, argument $\mathbf{k}-\mathbf{q}$); H2 gives $W^{abcd}(\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (standard convolution, argument $\mathbf{q}-\mathbf{k}$).
 
 **Fock** ($\mathbf{q}$-independent):
 
-$$\Sigma_F^{ab} = -\frac{1}{2}\sum_{cd}\left[\widetilde{W}^{cbad}(\mathbf{0})+\widetilde{W}^{adcb}(\mathbf{0})\right]\bar{G}^{cd}$$
+$$\Sigma_F^{ab} = -\sum_{cd}\left[\widetilde{W}^{cbad}(\mathbf{0})+\widetilde{W}^{adcb}(\mathbf{0})\right]\bar{G}^{cd}$$
 
 ---
 
@@ -307,7 +309,7 @@ where the second equality uses momentum conservation $\mathbf{k}_1+\mathbf{k}_3=
 
 The full self-energy is:
 
-$$\Sigma^{ab}(\mathbf{q}) = \frac{1}{2N}\sum_{\mathbf{k}}\sum_{cd}
+$$\Sigma^{ab}(\mathbf{q}) = \frac{1}{N}\sum_{\mathbf{k}}\sum_{cd}
 \left[\widetilde{W}^{cdab}(-(\mathbf{k}+\mathbf{q}))+\widetilde{W}^{abcd}(-(\mathbf{k}+\mathbf{q}))
 -\widetilde{W}^{cbad}(-(\mathbf{k}+\mathbf{q}))-\widetilde{W}^{adcb}(-(\mathbf{k}+\mathbf{q}))\right]G^{cd}(\mathbf{k})$$
 
@@ -319,7 +321,7 @@ $$\frac{1}{N}\sum_{\mathbf{k}}\widetilde{W}(-(\mathbf{k}+\mathbf{q}))\,G(\mathbf
 
 where the last step substitutes $\mathbf{r}\to-\mathbf{r}$. Therefore:
 
-$$\Sigma^{ab}(\mathbf{q}) = \frac{1}{2}\mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}
+$$\Sigma^{ab}(\mathbf{q}) = \mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}
 \left[W^{cdab}(-\mathbf{r})+W^{abcd}(-\mathbf{r})
 -W^{cbad}(-\mathbf{r})-W^{adcb}(-\mathbf{r})\right]
 G^{cd}(-\mathbf{r})\right]$$
@@ -399,12 +401,12 @@ where $G(\boldsymbol{\tau}) = \frac{1}{N_k}\sum_{\mathbf{k}} G(\mathbf{k})\,e^{-
 **`green_k_to_tau!(G_taus, G_k, kpoints, taus)`** — In-place direct Fourier sum: for each $\boldsymbol{\tau}$ in `taus`, accumulates $G(\boldsymbol{\tau}) = \frac{1}{N_k}\sum_k G(k)\,e^{-ik\cdot\tau}$ into the pre-allocated matrices in `G_taus`. Clears buffers before accumulating.
 
 **`build_heff_k!(H_k, T_k_func, wr_A, wr_B, wr_C, V_k_func, G_k, kpoints, G_taus_buf, g_adj_buf, f_buf, taus_needed, tau_idx; include_fock)`** — Builds $H^\text{eff}(\mathbf{q})$ in-place for all $\mathbf{q}$ simultaneously. Pre-allocated buffers (`G_taus_buf`, `g_adj_buf`, `f_buf`) are reused every SCF iteration. The inner $\mathbf{q}$-accumulation loop is parallelized with `Threads.@threads`. Case breakdown:
-- **Case A Hartree**: $\mathbf{q}$-independent; $+\tfrac{1}{2}K_H\cdot\text{vec}(\bar{G})$
-- **Case A Fock**: $\mathbf{q}$-dependent; $-\tfrac{1}{2}\sum_\tau K(\tau)\cdot\text{vec}(G(\tau))\cdot e^{iq\cdot\tau}$
-- **Case B Hartree**: $\mathbf{q}$-dependent; $+\tfrac{1}{2}\sum_\tau K(\tau)\cdot\text{vec}(G(\tau))\cdot e^{iq\cdot\tau}$
-- **Case B Fock**: $\mathbf{q}$-independent; $-\tfrac{1}{2}K_F\cdot\text{vec}(\bar{G})$
-- **Case C Hartree** (always): $+\tfrac{1}{2}\sum_\tau K_H(\tau)\cdot\text{vec}(G(\tau)^\dagger)\cdot e^{iq\cdot\tau}$
-- **Case C Fock** (if `include_fock`): $-\tfrac{1}{2}\sum_\tau K_F(\tau)\cdot\text{vec}(G(\tau)^\dagger)\cdot e^{iq\cdot\tau}$
+- **Case A Hartree**: $\mathbf{q}$-independent; $+K_H\cdot\text{vec}(\bar{G})$
+- **Case A Fock**: $\mathbf{q}$-dependent; $-\sum_\tau K(\tau)\cdot\text{vec}(G(\tau))\cdot e^{iq\cdot\tau}$
+- **Case B Hartree**: $\mathbf{q}$-dependent; $+\sum_\tau K(\tau)\cdot\text{vec}(G(\tau))\cdot e^{iq\cdot\tau}$
+- **Case B Fock**: $\mathbf{q}$-independent; $-K_F\cdot\text{vec}(\bar{G})$
+- **Case C Hartree** (always): $+\sum_\tau K_H(\tau)\cdot\text{vec}(G(\tau)^\dagger)\cdot e^{iq\cdot\tau}$
+- **Case C Fock** (if `include_fock`): $-\sum_\tau K_F(\tau)\cdot\text{vec}(G(\tau)^\dagger)\cdot e^{iq\cdot\tau}$
 - **General**: $O(N_k^2 d^4)$ via `build_Uk`
 
 **`diagonalize_heff_k(H_k)`** — Diagonalizes $H^\text{eff}(k)$ at each k-point with `Threads.@threads`. Returns `(evals, evecs)` of shapes `(d, Nk)` and `(d, d, Nk)`.

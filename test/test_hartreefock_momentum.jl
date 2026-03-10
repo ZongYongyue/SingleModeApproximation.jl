@@ -27,9 +27,10 @@ _n_elec    = 16
 _onebody = generate_onebody(_dofs, _nn_bonds,
     (delta, qn1, qn2) -> qn1.spin == qn2.spin ? -_t : 0.0)
 
+# include 1/2 prefactor in the operator definition
 _twobody = generate_twobody(_dofs, _nn_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? _V : 0.0)
+        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? 0.5 * _V : 0.0)
 
 _result = solve_hfk(_dofs, _onebody, _twobody, _kpoints, _n_elec;
     n_restarts=20, tol=1e-8, verbose=false)

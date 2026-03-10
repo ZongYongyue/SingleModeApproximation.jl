@@ -16,6 +16,8 @@ $$H_0 = \sum_{ij}\sum_{ab} t^{ab}_{ij}\, c^\dagger_{ia} c_{jb}$$
 
 $$H_{\text{int}} = \sum_{ijkl}\sum_{abcd} V^{abcd}_{ijkl}\, c^\dagger_{ia} c_{jb} c^\dagger_{kc} c_{ld}$$
 
+> **NOTE** Here we **do not** build a fixed $\tfrac{1}{2}$ symmetry factor into the Hartree-Fock machinery. If you want the conventional $\tfrac{1}{2}$, include it directly in the interaction coefficients passed to `generate_twobody` (for example, use `value = 0.5 * V`). This keeps the operator representation and the numerical Hamiltonian consistent.
+
 The interaction matrix element is defined as
 
 $$V^{abcd}_{ijkl} = \iint d\mathbf{r}_1\,d\mathbf{r}_2\;

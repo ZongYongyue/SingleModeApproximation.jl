@@ -29,7 +29,7 @@ Pkg.develop(url="https://github.com/Quantum-Many-Body/MeanFieldTheories.jl")
 
 ### Real-Space Hartree-Fock Approximation (`solve_hfr`)
 
-Hubbard model ($t=1$, $U=4$, half-filling on a 4×4 square lattice) solved by real-space Hartree-Fock. 
+Hubbard model ($t=1$, $U=8$, half-filling on a 4×4 square lattice) solved by real-space Hartree-Fock.
 
 ```julia
 using MeanFieldTheories
@@ -37,7 +37,7 @@ using MeanFieldTheories
 # Square lattice with periodic boundary conditions
 unitcell = Lattice([Dof(:site, 1)], [QN(site=1)], [[0.0, 0.0]])
 lattice  = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (4, 4))
-t = 1.0;  U = 4.0
+t = 1.0;  U = 8.0
 
 # Operators (shared by all four cases below)
 function make_ops(dofs)
@@ -46,7 +46,7 @@ function make_ops(dofs)
     # 1/2 Σ_i 2*U_{ii} n_i↑ * n_i↓: the 1/2 prefactor is built-in, so multiply by 2 to compensate
     U_ops = generate_twobody(dofs, bonds(lattice, (:p, :p), 0),
         (deltas, qn1, qn2, qn3, qn4) ->
-            (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? 2U : 0.0,
+            (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1, 1, 2, 2) ? U : 0.0,
         order = (cdag, :i, c, :i, cdag, :i, c, :i)).ops
     vcat(t_ops, U_ops)
 end
@@ -60,48 +60,48 @@ Run log:
 ============================================================
 Hartree-Fock SCF Solver
 ============================================================
-[12:05:51] Building Hamiltonian  (144 operators)
-               t matrix: (32, 32), nnz = 128        1.580ms
-               U matrix: (1024, 1024), nnz = 64       276.666μs
+[13:40:12] Building Hamiltonian  (144 operators)
+               t matrix: (32, 32), nnz = 128      358.292μs
+               U matrix: (1024, 1024), nnz = 64       124.417μs
   System: N = 32, blocks = 1, particles = [16] (total = 16)
   T = 0,  mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
 ============================================================
-[12:05:51] G initialized   322.916μs
-[12:05:51] Iter    1  res = 3.905e-03  E = -24.342729  NCond = 1.4379
-[12:05:51] Iter    2  res = 3.600e-03  E = -48.811790  NCond = 16.0000
-[12:05:51] Iter    3  res = 1.742e-03  E = +5.972756  NCond = 16.0000
-[12:05:51] Iter    4  res = 1.360e-03  E = +2.889470  NCond = 16.0000
-[12:05:51] Iter    5  res = 1.131e-03  E = +0.764717  NCond = 16.0000
-[12:05:51] Iter   10  res = 3.043e-04  E = -9.229111  NCond = 16.0000
-[12:05:51] Iter   20  res = 2.122e-04  E = -6.627825  NCond = 16.0000
-[12:05:51] Iter   30  res = 5.696e-07  E = -7.387908  NCond = 16.0000
-[12:05:51] Iter   36  res = 8.454e-09 < 1.000e-08  CONVERGED
+[13:40:12] G initialized    33.708μs
+[13:40:12] Iter    1  res = 3.909e-03  E = -24.399771  NCond = 1.4220
+[13:40:12] Iter    2  res = 3.631e-03  E = -49.605585  NCond = 16.0000
+[13:40:12] Iter    3  res = 1.623e-03  E = +7.257954  NCond = 16.0000
+[13:40:12] Iter    4  res = 1.389e-03  E = +3.645997  NCond = 16.0000
+[13:40:12] Iter    5  res = 1.103e-03  E = +2.070912  NCond = 16.0000
+[13:40:12] Iter   10  res = 3.143e-04  E = -13.013728  NCond = 16.0000
+[13:40:12] Iter   20  res = 4.440e-05  E = -7.825859  NCond = 16.0000
+[13:40:12] Iter   30  res = 7.137e-08  E = -7.389622  NCond = 16.0000
+[13:40:12] Iter   32  res = 7.424e-09 < 1.000e-08  CONVERGED
 ============================================================
-[12:05:51] SCF CONVERGED  (36 iterations)
-  Band energy:        -1.0131477037
-  Interaction energy: -6.3764742555
-  Total energy:       -7.3896219592
+[13:40:12] SCF CONVERGED  (32 iterations)
+  Band energy:        -1.0131544557
+  Interaction energy: -6.3764731228
+  Total energy:       -7.3896275785
   NCond:              16.000000
-  Sz:                 +0.000028
-  μ (block 1):       +4.0000000633
+  Sz:                 -0.000040
+  μ (block 1):       +3.9999998830
 
   ── Timing Summary ────────────────────────────────────────────
   Phase                      Total         Avg   Calls
   ────────────────────────────────────────────────────────
-  build_T                  1.580ms     1.580ms       1
-  build_U                276.666μs   276.666μs       1
-  initialize_green       322.916μs   322.916μs       1
-  build_h_eff            203.541μs     5.653μs      36
-  diagonalize              3.901ms   108.347μs      36
-  update_green           185.752μs     5.159μs      36
-  calc_energies           81.497μs     2.328μs      35
+  build_T                358.292μs   358.292μs       1
+  build_U                124.417μs   124.417μs       1
+  initialize_green        33.708μs    33.708μs       1
+  build_h_eff            192.080μs     6.002μs      32
+  diagonalize              3.351ms   104.708μs      32
+  update_green           130.665μs     4.083μs      32
+  calc_energies           69.419μs     2.239μs      31
   ────────────────────────────────────────────────────────
-  solve_hfr (total)      149.706ms   149.706ms       1
+  solve_hfr (total)        7.556ms     7.556ms       1
   ────────────────────────────────────────────────────────
 ```
 ### Momentum-Space Hartree-Fock Approximation (`solve_hfk`)
 
-t-V model ($$t=1$$, $$V=4$$ on  a 4×4 square lattice) solved by momentum-space Hartree-Fock. 
+t-V model ($$t=1$$, $$V=4$$ on  a 4×4 square lattice) solved by momentum-space Hartree-Fock.
 
 ```julia
 using MeanFieldTheories
@@ -118,10 +118,11 @@ nn_bonds = bonds(unitcell, (:p, :p), 1)
 onebody = generate_onebody(dofs, nn_bonds,
     (delta, qn1, qn2) -> qn1.spin == qn2.spin ? -1.0 : 0.0)
 
-# 1/2 Σ_{i≠j, σσ'} V_{ij} n_{iσ} n_{jσ'}
+# 1/2Σ_{i≠j, σσ'} V_{ij} n_{iσ} n_{jσ'}
 twobody = generate_twobody(dofs, nn_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? 4.0 : 0.0)
+        qn1.spin == qn2.spin && qn3.spin == qn4.spin ? 4.0/2 : 0.0;
+        order = (cdag, :i, c, :i, cdag, :j, c, :j))
 
 ks = build_kpoints([[2.0, 0.0], [0.0, 2.0]], (2, 2))
 
@@ -136,32 +137,32 @@ Hartree-Fock SCF Solver (momentum space)
   Nk = 4,  d = 8,  n_electrons = 16,  T = 0
   mixing = DIIS(m=8),  tol = 1e-08,  max_iter = 1000
 ============================================================
-[23:25:44]  T(r): 6 terms   357.584μs
-[23:25:44]  V(r): 5 triples   557.208μs
-[23:25:44] G initialized    39.417μs
-[23:25:44] Iter    1  res = 1.563e-02  E = -6.193238  NCond = 4.0000
-[23:25:44] Iter   10  res = 3.392e-09 < 1.000e-08  CONVERGED
+[13:52:05]  T(r): 6 terms   383.291μs
+[13:52:05]  V(r): 5 triples   491.291μs
+[13:52:05] G initialized   459.834μs
+[13:52:05] Iter    1  res = 1.566e-02  E = -6.104777  NCond = 4.0000
+[13:52:05] Iter   10  res = 6.553e-09 < 1.000e-08  CONVERGED
 ============================================================
-[23:25:44] SCF CONVERGED  (10 iterations)
-  Band energy:        -0.0095358050
-  Interaction energy: -0.5570200781
-  Total energy:       -0.5665558830
+[13:52:05] SCF CONVERGED  (10 iterations)
+  Band energy:        -0.0095459283
+  Interaction energy: -0.5570150688
+  Total energy:       -0.5665609971
   NCond:              4.000000
   μ:                  +16.0000000000
 
   ── Timing Summary (k-space HF) ───────────────────────────
   Phase                        Total         Avg   Calls
   ──────────────────────────────────────────────────────────
-  build_Tr                 357.584μs   357.584μs       1
-  build_Tk                   7.625μs     7.625μs       1
-  build_Vr                 557.208μs   557.208μs       1
-  initialize_green_k        39.417μs    39.417μs       1
-  build_heff_k               4.792ms   479.237μs      10
-  diagonalize_k              4.512ms   451.200μs      10
-  update_green_k           643.875μs    64.387μs      10
-  calc_energies_k           56.251μs    28.125μs       2
+  build_Tr                 383.291μs   383.291μs       1
+  build_Tk                   7.000μs     7.000μs       1
+  build_Vr                 491.291μs   491.291μs       1
+  initialize_green_k       459.834μs   459.834μs       1
+  build_heff_k               7.890ms   789.012μs      10
+  diagonalize_k              4.702ms   470.216μs      10
+  update_green_k             1.007ms   100.704μs      10
+  calc_energies_k           89.709μs    44.854μs       2
   ──────────────────────────────────────────────────────────
-  solve_hfk (total)         18.799ms    18.799ms       1
+  solve_hfk (total)         26.227ms    26.227ms       1
   ──────────────────────────────────────────────────────────
 ```
 

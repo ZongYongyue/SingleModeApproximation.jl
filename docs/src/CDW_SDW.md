@@ -178,10 +178,10 @@ G_sdw = make_G_sdw()
 G_cdw = make_G_cdw()
 
 # ── On-site interaction U ───────────────────────────────────────────────────
-# 1/2 Σ_i 2*U_{ii} n_i↑ * n_i↓: the 1/2 prefactor is built-in, so multiply by 2 to compensate
+# Σ_i U_{ii} n_i↑ * n_i↓
 U_ops = generate_twobody(dofs, onsite_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
-        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,1,2,2) ? 2*U_ext : 0.0,
+        (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,1,2,2) ? U_ext : 0.0,
     order = (cdag, :i, c, :i, cdag, :i, c, :i))
 
 println("# Extended Hubbard model: t=$t_ext  U=$U_ext  half-filling")
@@ -198,10 +198,10 @@ Nq_list  = Float64[]
 phase_list = String[]
 
 for V in Vs
-    # 1/2 Σ_{<i,j>, σσ'} 2*V_{ij} n_{iσ} n_{jσ'}: the 1/2 prefactor is built-in, <i,j> denotes bond indices.
+    # 1/2 Σ_{i≠j, σσ'} V_{ij} n_{iσ} n_{jσ'}
     V_ops = generate_twobody(dofs, nn_bonds,
         (deltas, qn1, qn2, qn3, qn4) ->
-            qn1.spin == qn2.spin && qn3.spin == qn4.spin && qn1.site < qn3.site ? 2*V : 0.0,
+            qn1.spin == qn2.spin && qn3.spin == qn4.spin ? V/2 : 0.0,
         order = (cdag, :i, c, :i, cdag, :j, c, :j))
 
     # Combine U and V interaction terms
