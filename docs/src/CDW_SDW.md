@@ -198,7 +198,7 @@ Nq_list  = Float64[]
 phase_list = String[]
 
 for V in Vs
-    # 1/2 Σ_{<i,j>, σσ'} 2*V_{ij} n_{iσ} n_{jσ'}: the 1/2 prefactor is built-in, <i,j> denotes a Bond
+    # 1/2 Σ_{<i,j>, σσ'} 2*V_{ij} n_{iσ} n_{jσ'}: the 1/2 prefactor is built-in, <i,j> denotes bond indices.
     V_ops = generate_twobody(dofs, nn_bonds,
         (deltas, qn1, qn2, qn3, qn4) ->
             qn1.spin == qn2.spin && qn3.spin == qn4.spin && qn1.site < qn3.site ? 2*V : 0.0,
@@ -295,7 +295,7 @@ This will:
 
 The calculated phase boundary at $V_c = U/4 = 1.0$ and the order parameter curves are in complete agreement with Fig. 5(b) of Ref. [1].
 
-![CDW_SDW](../../benchmark/CDW_SDW/CDW_SDW.png)
+![CDW_SDW](CDW_SDW.png)
 
 ## References
 
