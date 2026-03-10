@@ -178,10 +178,7 @@ G_sdw = make_G_sdw()
 G_cdw = make_G_cdw()
 
 # ── On-site interaction U ───────────────────────────────────────────────────
-# generate_twobody with k=1 (single site) only generates one spin combination.
-# Since U n↑n↓ = U (n↑n↓ + n↓n↑), we need to multiply by 2.
-# This is because the interaction has two equivalent ways to contract:
-# (↑,↑,↓,↓) and (↓,↓,↑,↑), both contributing U n↑n↓
+# 1/2 Σ_i 2*U_{ii} n_i↑ * n_i↓: the 1/2 prefactor is built-in, so multiply by 2 to compensate
 U_ops = generate_twobody(dofs, onsite_bonds,
     (deltas, qn1, qn2, qn3, qn4) ->
         (qn1.spin, qn2.spin, qn3.spin, qn4.spin) == (1,1,2,2) ? 2*U_ext : 0.0,
@@ -201,9 +198,7 @@ Nq_list  = Float64[]
 phase_list = String[]
 
 for V in Vs
-    # Nearest-neighbor interaction V: Σ_{i≠j} n_iσ n_jσ'
-    # For each bond, generate both (i,j) and (j,i) assignments, so multiply by 2
-    # Only keep terms with site i < site j to avoid double counting
+    # 1/2 Σ_{<i,j>, σσ'} 2*V_{ij} n_{iσ} n_{jσ'}: the 1/2 prefactor is built-in, <i,j> denotes a Bond
     V_ops = generate_twobody(dofs, nn_bonds,
         (deltas, qn1, qn2, qn3, qn4) ->
             qn1.spin == qn2.spin && qn3.spin == qn4.spin && qn1.site < qn3.site ? 2*V : 0.0,
