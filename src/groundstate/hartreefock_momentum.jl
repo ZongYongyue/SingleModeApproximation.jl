@@ -128,7 +128,7 @@ in `ops` are silently skipped.
 - Raw V̄ values are stored without antisymmetrization; the HF self-energy
   symmetrization is handled inside `build_heff_k!`.
 - The density-density special case (all τ1=τ3=0) is detected downstream in
-  `build_heff_k!` to select the FFT convolution path.
+  `build_heff_k!` to select the real-space path.
 """
 function build_Vr(
     dofs::SystemDofs,
@@ -183,7 +183,7 @@ of shape `(d_int, d_int, d_int, d_int)`.
 # Notes
 - Only needed for the general (non-density-density) path in `build_heff_k!`.
 - For density-density interactions (all τ1=τ2, τ3=0 in V_r.entries),
-  `build_heff_k!` uses FFT convolution directly from `V_r` without calling this.
+  `build_heff_k!` uses real-space directly from `V_r` without calling this.
 """
 function build_Vk(V_r)
     isempty(V_r.mats) && return nothing
@@ -241,12 +241,12 @@ function build_Uk(V_k)
     end
 end
 
-# ──────────────── FFT-acceleration kernels ────────────────
+# ──────────────── Real-space kernels ────────────────
 
 """
     _tau_case(τ1, τ2, τ3) -> Symbol
 
-Classify a displacement triple (τ1,τ2,τ3) into one of four FFT-acceleration cases
+Classify a displacement triple (τ1,τ2,τ3) into one of four real-space formulation cases
 (Theory §6). Priority A > B > C; a triple satisfying multiple conditions (e.g. (0,0,0))
 is assigned to the highest-priority case.
 
@@ -270,7 +270,7 @@ end
 """
     _classify_Vr(V_r) -> NamedTuple
 
-Partition the entries of `V_r` into four FFT-acceleration cases based on the
+Partition the entries of `V_r` into four real-space formulation cases based on the
 (τ1,τ2,τ3) structure of each entry (Theory §6), following priority A > B > C.
 
 # Returns
@@ -321,8 +321,8 @@ Using free indices (a,b) and summation indices (c,d):
                              ─────────────────────────────
                               W^{cdab}(r)       W^{abcd}(r)
 
-**Fock** (FFT, contracted with G^{cd}(r) then transformed to q):
-    Σ_F^{ab}(q) = -FFT_r[ Σ_{cd} [W^{cbad}(r) + W^{adcb}(-r)] G^{cd}(r) ]
+**Fock** (real-space, contracted with G^{cd}(r) then transformed to q):
+    Σ_F^{ab}(q) = -Σ_r [W^{cbad}(r) + W^{adcb}(-r)] G^{cd}(r) · exp(iq·r)
 Using hermiticity W^{abcd}(-r) = conj(W^{dcba}(r)), one obtains W^{adcb}(-r) = conj(W^{bcda}(r)):
     fock.mats[n][a,b,c,d] = permutedims(W(r),(3,2,1,4)) + conj(permutedims(W(r),(4,1,2,3)))
                              ────────────────────────────   ──────────────────────────────────
@@ -359,8 +359,8 @@ end
 Assemble the Hartree and Fock real-space kernels for Case B interactions
 (exchange-type, τ1=0, τ2=τ3=τ). See Theory §6.2. Case B is the complement of Case A.
 
-**Hartree** (FFT, contracted with G^{cd}(r) then transformed to q):
-    Σ_H^{ab}(q) = FFT_r[ Σ_{cd} [W^{cdab}(-r) + W^{abcd}(r)] G^{cd}(r) ]
+**Hartree** (real-space, contracted with G^{cd}(r) then transformed to q):
+    Σ_H^{ab}(q) = Σ_r [W^{cdab}(-r) + W^{abcd}(r)] G^{cd}(r) · exp(iq·r)
 Case B hermiticity: [W^{abcd}(τ)]* = W^{badc}(-τ)  (note: -τ, unlike Case A).
 Derivation of W^{cdab}(-r) = conj(W^{dcba}(r)):
   substitute a→d,b→c,c→b,d→a in the hermiticity relation:

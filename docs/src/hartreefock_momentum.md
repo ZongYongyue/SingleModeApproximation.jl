@@ -122,7 +122,7 @@ Its real-space counterpart is defined by the inverse Fourier transform
 
 $$G^{ab}(\mathbf{r}) \equiv \frac{1}{N}\sum_{\mathbf{k}} G^{ab}(\mathbf{k})\,e^{-i\mathbf{k}\cdot\mathbf{r}} = \langle c^\dagger_{\mathbf{r},a}\,c_{\mathbf{0},b}\rangle$$
 
-which uses the **negative** phase convention (creation operator carries $e^{-i\mathbf{k}\cdot\mathbf{r}}$, consistent with §2.1). This pairs with the interaction kernel convention $\widetilde{W}(\mathbf{q})=\sum_\mathbf{r}W(\mathbf{r})\,e^{+i\mathbf{q}\cdot\mathbf{r}}$ so that both $G$ and $\widetilde{W}$ are forward Fourier transforms; the FFT identities in §6 hold under this consistent choice.
+which uses the **negative** phase convention (creation operator carries $e^{-i\mathbf{k}\cdot\mathbf{r}}$, consistent with §2.1). This pairs with the interaction kernel convention $\widetilde{W}(\mathbf{q})=\sum_\mathbf{r}W(\mathbf{r})\,e^{+i\mathbf{q}\cdot\mathbf{r}}$ so that both $G$ and $\widetilde{W}$ are forward Fourier transforms; the Fourier identities in §6 hold under this consistent choice.
 
 States at different $\mathbf{k}$ points are uncorrelated. If translational symmetry is spontaneously broken (e.g., antiferromagnetic order, charge density wave), the magnetic unit cell must be adopted as the new unit cell and $\mathbf{k}$ redefined in the corresponding Brillouin zone.
 
@@ -208,7 +208,7 @@ Self-consistent iteration procedure:
 
 ---
 
-### 6. Single-Variable Interactions and FFT Acceleration
+### 6. Single-Variable Interactions and Real-Space Formulation
 
 The naive evaluation of the HF self-energy (§4) requires a double loop over $\mathbf{k}$ and $\mathbf{q}$, costing $O(N_k^2 d^4)$. A significant reduction to $O(N_k\log N_k)$ is possible whenever $\bar{V}^{abcd}(\boldsymbol{\tau}_1,\boldsymbol{\tau}_2,\boldsymbol{\tau}_3)$ depends on only a **single displacement variable**, i.e., two of the three $\boldsymbol{\tau}$'s are related by equality or vanish. There are three distinct structural cases.
 
@@ -220,7 +220,7 @@ The naive evaluation of the HF self-energy (§4) requires a double loop over $\m
 >
 > $$\frac{1}{N}\sum_\mathbf{k}\widetilde{A}(-(\mathbf{k}+\mathbf{q}))\,\widetilde{B}(\mathbf{k}) = \mathcal{F}_{\mathbf{r}\to\mathbf{q}}[A(-\mathbf{r})\,B(-\mathbf{r})]$$
 >
-> The sign of $\mathbf{k}$ in the $\widetilde{A}$ argument determines which real-space function appears: $(\mathbf{q}-\mathbf{k})$ gives $A(\mathbf{r})$; $(\mathbf{k}-\mathbf{q})$ gives $A(-\mathbf{r})$; $-(\mathbf{k}+\mathbf{q})$ gives both $A(-\mathbf{r})$ and $B(-\mathbf{r})$. Mixing up these cases is the most common source of sign errors in the FFT acceleration.
+> The sign of $\mathbf{k}$ in the $\widetilde{A}$ argument determines which real-space function appears: $(\mathbf{q}-\mathbf{k})$ gives $A(\mathbf{r})$; $(\mathbf{k}-\mathbf{q})$ gives $A(-\mathbf{r})$; $-(\mathbf{k}+\mathbf{q})$ gives both $A(-\mathbf{r})$ and $B(-\mathbf{r})$. Mixing up these cases is the most common source of sign errors in the real-space formulation.
 
 #### 6.1 Case A — Density-Density ($\boldsymbol{\tau}_1=\boldsymbol{\tau}_2=\boldsymbol{\tau},\;\boldsymbol{\tau}_3=\mathbf{0}$)
 
@@ -249,11 +249,11 @@ $$\Sigma_H^{ab} = \sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{0})+\widetilde{W}^
 
 where $\bar{G}^{cd} = \frac{1}{N}\sum_\mathbf{k}G^{cd}(\mathbf{k}) = G^{cd}(\mathbf{r}=\mathbf{0})$ is the on-site Green's function.
 
-**Fock** (FFT-acceleratable via convolution theorem):
+**Fock** (real-space via convolution theorem):
 
 $$\Sigma_F^{ab}(\mathbf{q}) = -\mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{cd}\left[W^{cbad}(\mathbf{r})+W^{adcb}(-\mathbf{r})\right]G^{cd}(\mathbf{r})\right]$$
 
-Real-space kernel: Fock 1 contributes $W^{cbad}(\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (standard convolution, argument $\mathbf{q}-\mathbf{k}$); Fock 2 contributes $W^{adcb}(-\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (cross-correlation, argument $\mathbf{k}-\mathbf{q}$). They share the same FFT after summing the two $W$ kernels pointwise.
+Real-space kernel: Fock 1 contributes $W^{cbad}(\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (standard convolution, argument $\mathbf{q}-\mathbf{k}$); Fock 2 contributes $W^{adcb}(-\mathbf{r})\cdot G^{cd}(\mathbf{r})$ (cross-correlation, argument $\mathbf{k}-\mathbf{q}$). They share the same Fourier transform after summing the two $W$ kernels pointwise.
 
 ---
 
@@ -275,7 +275,7 @@ The channel structure is the complement of Case A:
 | Fock 1: $\widetilde{V}^{cbad}(k,q,q)$ | $\widetilde{W}^{cbad}(\mathbf{0})$ | **k-independent** |
 | Fock 2: $\widetilde{V}^{adcb}(q,k,k)$ | $\widetilde{W}^{adcb}(\mathbf{0})$ | **k-independent** |
 
-**Hartree** (FFT-acceleratable):
+**Hartree** (real-space):
 
 $$\Sigma_H^{ab}(\mathbf{q}) = \frac{1}{N}\sum_{\mathbf{k}}\sum_{cd}\left[\widetilde{W}^{cdab}(\mathbf{k}-\mathbf{q})+\widetilde{W}^{abcd}(\mathbf{q}-\mathbf{k})\right]G^{cd}(\mathbf{k})$$
 
@@ -326,19 +326,19 @@ $$\Sigma^{ab}(\mathbf{q}) = \mathcal{F}_{\mathbf{r}\to\mathbf{q}}\!\left[\sum_{c
 -W^{cbad}(-\mathbf{r})-W^{adcb}(-\mathbf{r})\right]
 G^{cd}(-\mathbf{r})\right]$$
 
-Real-space kernel: $\boldsymbol{W}(-\mathbf{r})\cdot\boldsymbol{G}(-\mathbf{r})$ (pointwise product of interaction and time-reversed Green's function, both evaluated at $-\mathbf{r}$, then FFT).
+Real-space kernel: $\boldsymbol{W}(-\mathbf{r})\cdot\boldsymbol{G}(-\mathbf{r})$ (pointwise product of interaction and time-reversed Green's function, both evaluated at $-\mathbf{r}$, then direct Fourier transform).
 
 ---
 
 #### 6.4 Summary
 
-The three FFT-acceleratable cases are distinguished by which $\boldsymbol{\tau}$ indices coincide:
+The three real-space cases are distinguished by which $\boldsymbol{\tau}$ indices coincide:
 
 | Case | $\boldsymbol{\tau}$ structure | $\widetilde{W}$ argument | Hartree | Fock | Real-space kernel |
 |---|---|---|---|---|---|
-| **A** density-density | $\tau_1=\tau_2=\tau,\;\tau_3=0$ | $\mathbf{k}_2-\mathbf{k}_1$ | $[\widetilde{W}^{cdab}(\mathbf{0}){+}\widetilde{W}^{abcd}(\mathbf{0})]\bar{G}^{cd}$ | $[W^{cbad}(\mathbf{r}){+}W^{adcb}(-\mathbf{r})]\cdot G^{cd}(\mathbf{r})$ via FFT | $[W(\mathbf{r}){+}W(-\mathbf{r})]\cdot G(\mathbf{r})$ |
-| **B** exchange-type | $\tau_1=0,\;\tau_2=\tau_3=\tau$ | $\mathbf{k}_2-\mathbf{k}_3$ | $[W^{cdab}(-\mathbf{r}){+}W^{abcd}(\mathbf{r})]\cdot G^{cd}(\mathbf{r})$ via FFT | $[\widetilde{W}^{cbad}(\mathbf{0}){+}\widetilde{W}^{adcb}(\mathbf{0})]\bar{G}^{cd}$ | $[W(-\mathbf{r}){+}W(\mathbf{r})]\cdot G(\mathbf{r})$ |
-| **C** pair-hopping | $\tau_1=\tau_3=\tau,\;\tau_2=0$ | $-(\mathbf{k}_1+\mathbf{k}_3)$ | $[W^{cdab}(-\mathbf{r}){+}W^{abcd}(-\mathbf{r})]\cdot G^{cd}(-\mathbf{r})$ via FFT | $[W^{cbad}(-\mathbf{r}){+}W^{adcb}(-\mathbf{r})]\cdot G^{cd}(-\mathbf{r})$ via FFT | $W(-\mathbf{r})\cdot G(-\mathbf{r})$ |
+| **A** density-density | $\tau_1=\tau_2=\tau,\;\tau_3=0$ | $\mathbf{k}_2-\mathbf{k}_1$ | $[\widetilde{W}^{cdab}(\mathbf{0}){+}\widetilde{W}^{abcd}(\mathbf{0})]\bar{G}^{cd}$ | $[W^{cbad}(\mathbf{r}){+}W^{adcb}(-\mathbf{r})]\cdot G^{cd}(\mathbf{r})$ via direct FT | $[W(\mathbf{r}){+}W(-\mathbf{r})]\cdot G(\mathbf{r})$ |
+| **B** exchange-type | $\tau_1=0,\;\tau_2=\tau_3=\tau$ | $\mathbf{k}_2-\mathbf{k}_3$ | $[W^{cdab}(-\mathbf{r}){+}W^{abcd}(\mathbf{r})]\cdot G^{cd}(\mathbf{r})$ via direct FT | $[\widetilde{W}^{cbad}(\mathbf{0}){+}\widetilde{W}^{adcb}(\mathbf{0})]\bar{G}^{cd}$ | $[W(-\mathbf{r}){+}W(\mathbf{r})]\cdot G(\mathbf{r})$ |
+| **C** pair-hopping | $\tau_1=\tau_3=\tau,\;\tau_2=0$ | $-(\mathbf{k}_1+\mathbf{k}_3)$ | $[W^{cdab}(-\mathbf{r}){+}W^{abcd}(-\mathbf{r})]\cdot G^{cd}(-\mathbf{r})$ via direct FT | $[W^{cbad}(-\mathbf{r}){+}W^{adcb}(-\mathbf{r})]\cdot G^{cd}(-\mathbf{r})$ via direct FT | $W(-\mathbf{r})\cdot G(-\mathbf{r})$ |
 
 All three cases reduce the $O(N_k^2 d^4)$ direct summation to $O(N_k\log N_k)$. In Cases A and B the two sub-channels ($\widetilde{W}(\mathbf{q}-\mathbf{k})$ and $\widetilde{W}(\mathbf{k}-\mathbf{q})$) contribute $W(\mathbf{r})$ and $W(-\mathbf{r})$ respectively, so the combined real-space kernel is $[W(\mathbf{r})+W(-\mathbf{r})]\cdot G(\mathbf{r})$. In Case C all channels give $\widetilde{W}(-(\mathbf{k}+\mathbf{q}))$, which maps to $W(-\mathbf{r})\cdot G(-\mathbf{r})$. Any interaction that does not fall into one of these three cases requires the full three-momentum evaluation via `build_Uk` at $O(N_k^2 d^4)$ cost.
 
@@ -392,7 +392,7 @@ where $\mathbf{b}_i$ are reciprocal lattice vectors ($a_i\cdot b_j = 2\pi\delta_
 
 ### 4. Self-Consistent Field Iteration
 
-**Why direct Fourier sum instead of FFT.** For cases A/B/C, the self-energy is:
+**Why direct Fourier sum is used.** For cases A/B/C, the self-energy is:
 
 $$\Sigma^{ab}(\mathbf{q}) = \sum_{\boldsymbol{\tau}} \left[\sum_{cd} K^{ab,cd}(\boldsymbol{\tau})\,G^{cd}(\boldsymbol{\tau})\right] e^{i\mathbf{q}\cdot\boldsymbol{\tau}}$$
 
