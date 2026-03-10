@@ -162,6 +162,37 @@ Hartree-Fock SCF Solver (momentum space)
   ──────────────────────────────────────────────────────────
 ```
 
+## Benchmark
+
+### CDW-SDW Phase Diagram of Extended Hubbard Model
+
+This benchmark reproduces the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling:
+
+$$H = -t \sum_{\langle ij \rangle,\sigma} c^\dagger_{i\sigma}c_{j\sigma} + U \sum_i n_{i\uparrow}n_{i\downarrow} + V \sum_{\langle ij \rangle} n_i n_j$$
+
+The model parameters are $t=1$, $U=4$, with nearest-neighbor repulsion $V \in [0, 2]$. At half-filling, the system exhibits two distinct phases:
+- **SDW/AFM phase** ($V/U \lesssim 1/4$): antiferromagnetic order with staggered magnetization $S(\pi,\pi) \neq 0$
+- **CDW/CO phase** ($V/U \gtrsim 1/4$): charge density wave order with staggered charge density $N(\pi,\pi) \neq 0$
+
+The calculation uses momentum-space unrestricted Hartree-Fock on a $2\times2$ magnetic unit cell with a $2\times2$ $k$-grid (4 $k$-points). For each $V$, SCF is initialized from two biased initial conditions (SDW and CDW), and the lower-energy converged state is taken as the ground state.
+
+Run:
+```
+julia --project=benchmark benchmark/CDW_SDW/run.jl
+```
+
+Results:
+
+![CDW_SDW](benchmark/CDW_SDW/CDW_SDW.png)
+
+The calculated phase boundary at $V_c = U/4 = 1.0$ and the order parameter curves are in complete agreement with Fig. 5(b) of Ref. [1].
+
+### Magnon Spectrum
+
+This benchmark will compute the magnon excitation spectrum using SMA. (See Ref. [2] for the theoretical background.)
+
+*Coming soon — to be added.*
+
 ## References
 
 [1] T. Aoyama, K. Yoshimi, K. Ido, Y. Motoyama, T. Kawamura, T. Misawa, T. Kato, and A. Kobayashi, [H-wave – A Python package for the Hartree-Fock approximation and the random phase approximation](https://doi.org/10.1016/j.cpc.2024.109087), Computer Physics Communications 298, 109087 (2024).
