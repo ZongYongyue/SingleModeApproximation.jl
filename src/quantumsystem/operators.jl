@@ -328,11 +328,18 @@ function generate_onebody(
     irvec_list = SV[]
 
     for bond in bonds
-        @assert length(bond.states) == 2 "One-body generator requires 2-site bonds"
+        @assert length(bond.states) in (1, 2) "One-body generator requires 1- or 2-site bonds"
 
-        s1, s2   = bond.states
-        delta    = rd(bond.coordinates[1]  - bond.coordinates[2])
-        irvec    = rd(bond.icoordinates[2] - bond.icoordinates[1])
+        if length(bond.states) == 1
+            s1 = bond.states[1]
+            s2 = bond.states[1]
+            delta = rd(bond.coordinates[1] - bond.coordinates[1])
+            irvec = rd(bond.icoordinates[1] - bond.icoordinates[1])
+        else
+            s1, s2 = bond.states
+            delta  = rd(bond.coordinates[1]  - bond.coordinates[2])
+            irvec  = rd(bond.icoordinates[2] - bond.icoordinates[1])
+        end
         pos_keys = keys(s1)
 
         qn_at_site1 = [qn for qn in dofs.valid_states if all(qn[k] == s1[k] for k in pos_keys)]
@@ -585,4 +592,3 @@ function build_interaction_tensor(dofs::SystemDofs, ops::AbstractVector{<:Operat
 
     return V
 end
-

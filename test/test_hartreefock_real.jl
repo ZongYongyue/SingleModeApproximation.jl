@@ -125,8 +125,7 @@ end
     end
 end
 
-@testset "solve_hfr — 2×4 Hubbard benchmark" begin
-    # Replicate the uhfr.py benchmark: 2×4 Hubbard model at half-filling
+@testset "solve_hfr — 2×4 Hubbard test case" begin
     # Expected: total energy ≈ -3.408, converged within ~50 iterations
     Nsite = 8
     Ncond = 8

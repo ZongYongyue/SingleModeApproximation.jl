@@ -1,6 +1,6 @@
-# Benchmark: SDW-CDW Phase Diagram of Extended Hubbard Model
+# Example: SDW-CDW Phase Diagram of Extended Hubbard Model
 
-This benchmark demonstrates the calculation of the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling. The calculation reproduces the competition between antiferromagnetic (SDW/AFM) and charge density wave (CDW/CO) orders.
+This example demonstrates the calculation of the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling. The calculation reproduces the competition between antiferromagnetic (SDW/AFM) and charge density wave (CDW/CO) orders.
 
 ## Physical Model
 
@@ -55,7 +55,7 @@ Note on U coefficient:
   (V with k=2 automatically generates both (i,j) and (j,i) assignments.)
 
 Run :
-    julia --project=benchmark benchmark/SDW_CDW/run.jl
+    julia --project=examples examples/SDW_CDW/run.jl
 """
 
 using Printf
@@ -276,12 +276,12 @@ savefig(plt, outfile)
 println("\nPlot saved to $outfile")
 ```
 
-## Running the Benchmark
+## Running the Example
 
-To run this benchmark, execute:
+To run this example, execute:
 
 ```bash
-julia --project=benchmark benchmark/SDW_CDW/run.jl
+julia --project=examples examples/SDW_CDW/run.jl
 ```
 
 This will:
@@ -295,7 +295,7 @@ This will:
 
 The calculated phase boundary at $V_c = U/4 = 1.0$ and the order parameter curves are in complete agreement with Fig. 5(b) of Ref. [1].
 
-![SDW_CDW](sdw_cdw.png)
+![SDW_CDW](fig/sdw_cdw.png)
 
 ## References
 

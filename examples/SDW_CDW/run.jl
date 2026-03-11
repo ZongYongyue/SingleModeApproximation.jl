@@ -20,7 +20,7 @@ Note on U coefficient:
   (V with k=2 automatically generates both (i,j) and (j,i) assignments.)
 
 Run :
-    julia --project=benchmark benchmark/SDW_CDW/run.jl
+    julia --project=examples examples/SDW_CDW/run.jl
 """
 
 using Printf

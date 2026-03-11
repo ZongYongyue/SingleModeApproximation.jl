@@ -23,6 +23,7 @@ makedocs(;
         "Single-Mode Approximation" => "singlemode.md",
         "Examples" => [
             "SDW-CDW Phase Diagram" => "SDW_CDW.md",
+            "AFM on Honeycomb Lattice" => "SM_AFM.md",
         ],
         "API Reference" => "api.md",
     ],

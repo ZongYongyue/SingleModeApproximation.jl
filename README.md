@@ -166,11 +166,11 @@ Hartree-Fock SCF Solver (momentum space)
   ──────────────────────────────────────────────────────────
 ```
 
-## Benchmark
+## Examples
 
 ### SDW-CDW Phase Diagram of Extended Hubbard Model
 
-This benchmark reproduces the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling:
+This example reproduces the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling:
 
 $$H = -t \sum_{\langle ij \rangle,\sigma} c^\dagger_{i\sigma}c_{j\sigma} + U \sum_i n_{i\uparrow}n_{i\downarrow} + V \sum_{\langle ij \rangle} n_i n_j$$
 
@@ -182,18 +182,18 @@ The calculation uses momentum-space unrestricted Hartree-Fock on a $2\times2$ ma
 
 Run:
 ```
-julia --project=benchmark benchmark/SDW_CDW/run.jl
+julia --project=examples examples/SDW_CDW/run.jl
 ```
 
 Results:
 
-![SDW_CDW](benchmark/SDW_CDW/sdw_cdw.png)
+![SDW_CDW](examples/SDW_CDW/sdw_cdw.png)
 
 The calculated phase boundary at $V_c = U/4 = 1.0$ and the order parameter curves are in complete agreement with Fig. 5(b) of Ref. [1].
 
 ### Magnon Spectrum
 
-This benchmark will compute the magnon excitation spectrum using SMA. (See Ref. [2] for the theoretical background.)
+This example will compute the magnon excitation spectrum using SMA. (See Ref. [2] for the theoretical background.)
 
 *Coming soon — to be added.*
 
