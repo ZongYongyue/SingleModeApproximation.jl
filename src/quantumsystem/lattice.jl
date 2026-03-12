@@ -376,83 +376,16 @@ function _generate_onsite_bonds(lattice::Lattice{D, Q, T}) where {D, Q, T}
     return result
 end
 
-# Helper: compute minimum image distance considering PBC
-function _min_image_distance(
-    coord1::SVector{D,T},
-    coord2::SVector{D,T},
-    vectors::Vector{SVector{D,T}},
-    boundary::NTuple{D, Symbol}
-) where {D, T}
-    _, dist, _ = _min_image_delta(coord1, coord2, vectors, boundary)
-    return dist
-end
-
-# Helper: get actual delta vector with minimum image convention.
-# Returns (delta, dist, icell_shift) where icell_shift is the lattice vector
-# of the periodic image used — i.e. the unit-cell origin of coord2's image.
-function _min_image_delta(
-    coord1::SVector{D,T},
-    coord2::SVector{D,T},
-    vectors::Vector{SVector{D,T}},
-    boundary::NTuple{D, Symbol}
-) where {D, T}
-    min_dist    = Inf
-    best_delta  = coord2 - coord1
-    best_shifts = ntuple(_ -> 0, D)
-
-    for shifts in Iterators.product([boundary[i] == :p ? (-1, 0, 1) : (0,) for i in 1:D]...)
-        delta = coord2 - coord1
-        for (dim, shift) in enumerate(shifts)
-            delta = delta + shift * vectors[dim]
-        end
-        dist = sqrt(sum(delta .^ 2))
-        if dist < min_dist
-            min_dist    = dist
-            best_delta  = delta
-            best_shifts = shifts
+# Helper: integer-shift positive direction (lexicographic).
+function _is_positive_shift(shift)
+    for s in shift
+        if s > 0
+            return true
+        elseif s < 0
+            return false
         end
     end
-
-    # icell_shift: the lattice vector of the cell containing coord2's image
-    icell_shift = sum(best_shifts[d] * vectors[d] for d in 1:D)
-
-    return rd(best_delta), rd(min_dist), rd(icell_shift)
-end
-
-# Helper: generate neighbor bonds by order
-function _generate_neighbor_bonds(
-    lattice::Lattice{D, Q, T},
-    vectors::Vector{SVector{D,T}},
-    boundary::NTuple{D, Symbol},
-    neighbor_order::Int
-) where {D, Q, T}
-    n_sites = length(lattice.position_states)
-
-    # Compute all unique distances
-    distances = Set{T}()
-    for i in 1:n_sites
-        for j in (i+1):n_sites
-            d = _min_image_distance(
-                lattice.coordinates[i],
-                lattice.coordinates[j],
-                vectors, boundary
-            )
-            if d > 1e-10  # exclude self
-                push!(distances, d)  # already rounded by _min_image_distance
-            end
-        end
-    end
-
-    # Sort distances and get the n-th smallest
-    sorted_distances = sort(collect(distances))
-    if neighbor_order > length(sorted_distances)
-        error("neighbor_order=$neighbor_order exceeds available distance levels ($(length(sorted_distances)))")
-    end
-
-    target_distance = sorted_distances[neighbor_order]
-    tolerance = 1e-6
-
-    return _generate_distance_bonds(lattice, vectors, boundary, target_distance, tolerance)
+    return false
 end
 
 """
@@ -460,8 +393,6 @@ end
 
 Check if delta vector is in "positive" direction using lexicographic ordering.
 The first non-zero component must be positive.
-
-Used to generate unidirectional bonds, avoiding duplicates like (i→j) and (j→i).
 """
 function is_positive_direction(delta::AbstractVector{T}) where T
     for d in delta
@@ -472,7 +403,98 @@ function is_positive_direction(delta::AbstractVector{T}) where T
             return false
         end
     end
-    return true  # zero vector (shouldn't happen for valid bonds)
+    return true  # zero vector
+end
+
+# Helper: build translations for periodic directions
+function _translations(boundary::NTuple{D, Symbol}, n::Int) where {D}
+    n <= 0 && return Tuple{}[]
+    ranges = [boundary[d] == :p ? (-n:n) : (0:0) for d in 1:D]
+    shifts = vec(collect(Iterators.product(ranges...)))
+    # drop zero shift and keep only one of ±shift
+    filter!(s -> any(!=(0), s) && _is_positive_shift(s), shifts)
+    return shifts
+end
+
+# Helper: convert integer shift to real-space vector
+function _shift_vector(
+    vectors::Vector{SVector{D,T}},
+    shift
+) where {D, T}
+    v = zero(SVector{D,T})
+    for d in 1:D
+        v = v + shift[d] * vectors[d]
+    end
+    return rd(v)
+end
+
+# Helper: estimate how many translations are needed for a target distance
+function _estimate_shift_range(
+    distance::Real,
+    vectors::Vector{SVector{D,T}},
+    boundary::NTuple{D, Symbol}
+) where {D, T}
+    lens = [norm(vectors[d]) for d in 1:D if boundary[d] == :p]
+    isempty(lens) && return 0
+    min_len = minimum(lens)
+    return max(1, ceil(Int, distance / min_len) + 1)
+end
+
+# Helper: collect distance shells using explicit tiling (QuantumLattices style)
+function _distance_levels(
+    lattice::Lattice{D, Q, T},
+    vectors::Vector{SVector{D,T}},
+    boundary::NTuple{D, Symbol},
+    max_n::Int,
+    tol::Real
+) where {D, Q, T}
+    coords = lattice.coordinates
+    n_sites = length(coords)
+    dists = Float64[]
+
+    # Intra-cell distances
+    for i in 1:n_sites-1
+        for j in (i+1):n_sites
+            dist = rd(norm(coords[j] - coords[i]))
+            dist > 1e-10 && push!(dists, dist)
+        end
+    end
+
+    # Inter-cell distances via periodic images
+    for shift in _translations(boundary, max_n)
+        shift_vec = _shift_vector(vectors, shift)
+        for i in 1:n_sites
+            c_img = coords[i] + shift_vec
+            for j in 1:n_sites
+                dist = rd(norm(c_img - coords[j]))
+                dist > 1e-10 && push!(dists, dist)
+            end
+        end
+    end
+
+    sort!(dists)
+    levels = Float64[]
+    for d in dists
+        if isempty(levels) || abs(d - levels[end]) > tol
+            push!(levels, d)
+        end
+    end
+    return levels
+end
+
+# Helper: generate neighbor bonds by order (QuantumLattices style)
+function _generate_neighbor_bonds(
+    lattice::Lattice{D, Q, T},
+    vectors::Vector{SVector{D,T}},
+    boundary::NTuple{D, Symbol},
+    neighbor_order::Int
+) where {D, Q, T}
+    tol = 1e-6
+    levels = _distance_levels(lattice, vectors, boundary, neighbor_order, tol)
+    if neighbor_order > length(levels)
+        error("neighbor_order=$neighbor_order exceeds available distance levels ($(length(levels)))")
+    end
+    return _generate_distance_bonds(lattice, vectors, boundary, levels[neighbor_order], tol)
 end
 
 # Helper: generate bonds at specific distance (unidirectional).
@@ -489,36 +511,37 @@ function _generate_distance_bonds(
     tolerance::Real
 ) where {D, Q, T}
     result   = Bond{Q, T, D}[]
-    n_sites  = length(lattice.position_states)
+    coords   = lattice.coordinates
+    states   = lattice.position_states
+    n_sites  = length(states)
     zero_sv  = zero(SVector{D,T})
 
-    # Shift ranges: ±1 for periodic directions, 0 only for open directions.
-    shift_ranges = [boundary[d] == :p ? (-1, 0, 1) : (0,) for d in 1:D]
+    # Intra-cell bonds
+    for i in 1:n_sites-1
+        for j in (i+1):n_sites
+            dist = rd(norm(coords[j] - coords[i]))
+            abs(dist - distance) < tolerance || continue
+            push!(result, Bond{Q,T,D}(
+                [states[i], states[j]],
+                [coords[i], coords[j]],
+                [zero_sv, zero_sv]
+            ))
+        end
+    end
 
-    for i in 1:n_sites
-        for j in 1:n_sites
-            i == j && continue
-
-            for shifts in Iterators.product(shift_ranges...)
-                # Cell-origin displacement for this periodic image of site j.
-                icell_shift = zero_sv
-                for (d, s) in enumerate(shifts)
-                    icell_shift = icell_shift + s * vectors[d]
-                end
-
-                delta = rd(lattice.coordinates[j] - lattice.coordinates[i] + icell_shift)
-                dist  = rd(sqrt(sum(delta .^ 2)))
-
+    # Inter-cell bonds (periodic images)
+    nshift = _estimate_shift_range(distance, vectors, boundary)
+    for shift in _translations(boundary, nshift)
+        shift_vec = _shift_vector(vectors, shift)
+        for i in 1:n_sites
+            c_img = coords[i] + shift_vec
+            for j in 1:n_sites
+                dist = rd(norm(c_img - coords[j]))
                 abs(dist - distance) < tolerance || continue
-                is_positive_direction(delta)      || continue
-
-                coord1 = lattice.coordinates[i]
-                coord2 = rd(coord1 + delta)
-
                 push!(result, Bond{Q,T,D}(
-                    [lattice.position_states[i], lattice.position_states[j]],
-                    [coord1, coord2],
-                    [zero_sv, rd(icell_shift)]
+                    [states[j], states[i]],
+                    [coords[j], rd(c_img)],
+                    [zero_sv, rd(shift_vec)]
                 ))
             end
         end

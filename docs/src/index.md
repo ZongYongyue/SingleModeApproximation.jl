@@ -175,6 +175,17 @@ Hartree-Fock SCF Solver (momentum space)
 
 ## Examples
 
+### Plot Lattice (Visualization Helper)
+
+This example shows a minimal lattice visualization script using **Plots.jl**. It draws a honeycomb lattice, NN/NNN bonds, and colors the two sublattices.
+
+Run:
+```
+julia --project=examples examples/Plot_Lattice/plot_lattice.jl
+```
+
+Output: `examples/Plot_Lattice/lattice_bonds.png`
+
 ### SDW-CDW Phase Diagram of Extended Hubbard Model
 
 This example reproduces the phase diagram of the extended Hubbard model on a 2D square lattice at half-filling:
@@ -207,7 +218,16 @@ This example will compute the magnon excitation spectrum using SMA. (See Ref. [2
 ## Documentation Contents
 
 ```@contents
-Pages = ["quantumsystem.md", "hartreefock_real.md", "hartreefock_momentum.md", "singlemode.md", "api.md"]
+Pages = [
+    "quantumsystem.md",
+    "hartreefock_real.md",
+    "hartreefock_momentum.md",
+    "singlemode.md",
+    "plot_lattice.md",
+    "SDW_CDW.md",
+    "SM_AFM.md",
+    "api.md",
+]
 Depth = 2
 ```
 
