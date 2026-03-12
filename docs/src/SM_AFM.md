@@ -67,7 +67,7 @@ unitcell = Lattice(
     [Dof(:cell, 1), Dof(:sub, 2, [:A, :B])],
     [QN(cell=1, sub=1), QN(cell=1, sub=2)],
     [[0.0, 0.0], [0.0, a/√3]];
-    supercell_vectors=[a1, a2]
+    vectors=[a1, a2]
 )
 
 # System DOFs: 1 cell × 2 sublattices × 2 spins → d = 4

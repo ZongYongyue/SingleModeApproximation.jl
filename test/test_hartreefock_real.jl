@@ -13,8 +13,13 @@ using MeanFieldTheories
     N = total_dim(dofs)  # Should be 4
 
     # Create a 2D lattice for hopping
-    unitcell = Lattice([Dof(:site, 1)], [QN(site=1)], [[0.0, 0.0]])
-    lattice = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (4, 1))
+    unitcell = Lattice(
+        [Dof(:site, 1)],
+        [QN(site=1)],
+        [[0.0, 0.0]];
+        vectors=[[1.0, 0.0], [0.0, 1.0]]
+    )
+    lattice = Lattice(unitcell, (4, 1))
     nn_bonds = bonds(lattice, (:p, :o), 1)
 
     # Generate hopping operators: -t c†_i c_j
@@ -70,8 +75,13 @@ end
     N = total_dim(dofs)  # Should be 4
 
     # Create a simple 2D lattice
-    unitcell = Lattice([Dof(:site, 1)], [QN(site=1)], [[0.0, 0.0]])
-    lattice = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (2, 1))
+    unitcell = Lattice(
+        [Dof(:site, 1)],
+        [QN(site=1)],
+        [[0.0, 0.0]];
+        vectors=[[1.0, 0.0], [0.0, 1.0]]
+    )
+    lattice = Lattice(unitcell, (2, 1))
     onsite_bonds = bonds(lattice, (:o, :o), 0)
 
     # Simple Hubbard U interaction: n_↑ n_↓

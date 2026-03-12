@@ -39,7 +39,7 @@ unitcell = Lattice(
     [Dof(:cell, 1), Dof(:sub, 2, [:A, :B])],
     [QN(cell=1, sub=1), QN(cell=1, sub=2)],
     [[0.0, 0.0], [0.0, a/√3]];
-    supercell_vectors=[a1, a2]
+    vectors=[a1, a2]
 )
 
 # System DOFs: 1 cell × 2 sublattices × 2 spins → d = 4
@@ -211,7 +211,7 @@ println("Part 2: Zigzag cylinder band structure (U=0)")
 println("=" ^ 60)
 
 Ny = 50
-cylinder = Lattice(unitcell, [a1, a2], (1, Ny))
+cylinder = Lattice(unitcell, (1, Ny))
 dofs_cyl = SystemDofs([Dof(:cell, Ny), Dof(:sub, 2, [:A, :B])])
 nn_bonds_cyl = bonds(cylinder, (:p, :o), 1)
 onebody_cyl = generate_onebody(dofs_cyl, nn_bonds_cyl, -t)

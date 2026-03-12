@@ -127,14 +127,16 @@ A `Lattice` maps position states to real-space coordinates. It is constructed fr
 unitcell = Lattice(
     [Dof(:cell, 1)],    # first DOF must have size=1 for tiling
     [QN(cell=1)],
-    [[0.0, 0.0]]
+    [[0.0, 0.0]];
+    vectors=[[1.0, 0.0], [0.0, 1.0]]
 )
 
 # Two-site (honeycomb) unit cell
 unitcell = Lattice(
     [Dof(:cell, 1), Dof(:sublattice, 2, [:A, :B])],
     [QN(cell=1, sublattice=1), QN(cell=1, sublattice=2)],
-    [[0.0, 0.0], [0.5, 0.289]]
+    [[0.0, 0.0], [0.5, 0.289]];
+    vectors=[[1.0, 0.0], [0.5, 0.866]]
 )
 ```
 
@@ -146,12 +148,12 @@ The physical simulation cell is built by tiling the unit cell along primitive la
 
 ```julia
 a1, a2 = [1.0, 0.0], [0.0, 1.0]
-lattice = Lattice(unitcell, [a1, a2], (4, 4))
+lattice = Lattice(unitcell, (4, 4))
 # First DOF now has size = 16 (= 4×4 unit cells)
-# supercell_vectors = [4*a1, 4*a2] are set automatically
+# vectors = [4*a1, 4*a2] are set automatically
 ```
 
-The `supercell_vectors` field is used for periodic boundary conditions in bond generation and for the reciprocal-space grid in momentum-space HF.
+The `vectors` field must be set in the unit cell; it is used for periodic boundary conditions in bond generation and for the reciprocal-space grid in momentum-space HF.
 
 Site coordinates can be queried by quantum number, even when the QN contains extra components beyond the position DOFs:
 

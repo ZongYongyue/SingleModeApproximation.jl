@@ -18,7 +18,7 @@ _dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2, [:up, :dn])])
 _unitcell = Lattice([Dof(:site, 4)],
                     [QN(site=1), QN(site=2), QN(site=3), QN(site=4)],
                     [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
-                    supercell_vectors=[[2.0, 0.0], [0.0, 2.0]])
+                    vectors=[[2.0, 0.0], [0.0, 2.0]])
 
 _nn_bonds  = bonds(_unitcell, (:p, :p), 1)
 _kpoints   = build_kpoints([[2.0, 0.0], [0.0, 2.0]], (2, 2))

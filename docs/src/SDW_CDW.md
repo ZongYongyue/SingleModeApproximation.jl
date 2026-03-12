@@ -76,7 +76,7 @@ dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2, [:up, :dn])])
 unitcell = Lattice([Dof(:site, 4)],
                    [QN(site=i) for i in 1:4],
                    [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]];
-                   supercell_vectors=[[2.0,0.0],[0.0,2.0]])
+                   vectors=[[2.0,0.0],[0.0,2.0]])
 
 # Generate nearest-neighbor bonds (both intra-cell and inter-cell)
 nn_bonds     = bonds(unitcell, (:p,:p), 1)

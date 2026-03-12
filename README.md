@@ -35,8 +35,13 @@ Hubbard model ($t=1$, $U=8$, half-filling on a 4×4 square lattice) solved by re
 using MeanFieldTheories
 
 # Square lattice with periodic boundary conditions
-unitcell = Lattice([Dof(:site, 1)], [QN(site=1)], [[0.0, 0.0]])
-lattice  = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (4, 4))
+unitcell = Lattice(
+    [Dof(:site, 1)],
+    [QN(site=1)],
+    [[0.0, 0.0]];
+    vectors=[[1.0, 0.0], [0.0, 1.0]]
+)
+lattice  = Lattice(unitcell, (4, 4))
 t = 1.0;  U = 8.0
 
 # Operators (shared by all four cases below)
@@ -111,7 +116,7 @@ dofs = SystemDofs([Dof(:site, 4), Dof(:spin, 2, [:up, :dn])])
 unitcell = Lattice([Dof(:site, 4)],
                      [QN(site=1), QN(site=2), QN(site=3), QN(site=4)],
                      [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
-                     supercell_vectors=[[2.0, 0.0], [0.0, 2.0]])
+                     vectors=[[2.0, 0.0], [0.0, 2.0]])
 
 nn_bonds = bonds(unitcell, (:p, :p), 1)
 
