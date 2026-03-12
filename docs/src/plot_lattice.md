@@ -81,4 +81,4 @@ println("Saved ", outpath)
 
 The figure is shown below (the image is stored under `docs/src/fig/`):
 
-![plot_lattice](fig/plot_lattice.png)
+![plot_lattice](fig/lattice_bonds.png)
