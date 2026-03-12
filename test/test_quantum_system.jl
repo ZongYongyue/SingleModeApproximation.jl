@@ -122,7 +122,7 @@ end
     lattice = Lattice([Dof(:cell, 1), Dof(:sub, 2)], states, coords)
 
     @test length(lattice.position_states) == 2
-    @test lattice.vectors === nothing
+    @test lattice.supercell_vectors === nothing
 
     # get_coordinate
     @test get_coordinate(lattice, QN(cell=1, sub=1)) == [0.0, 0.0]
@@ -132,24 +132,23 @@ end
     unitcell = Lattice(
         [Dof(:cell, 1), Dof(:sub, 2)],
         [QN(cell=1, sub=1), QN(cell=1, sub=2)],
-        [[0.0, 0.0], [0.5, 0.0]];
-        vectors=[[1.0, 0.0], [0.0, 1.0]]
+        [[0.0, 0.0], [0.5, 0.0]]
     )
-    tiled = Lattice(unitcell, (2, 2))
+    a1, a2 = [1.0, 0.0], [0.0, 1.0]
+    tiled = Lattice(unitcell, [a1, a2], (2, 2))
 
     @test length(tiled.position_states) == 8
     @test tiled.position_dofs[1].size == 4
-    @test tiled.vectors == [[2.0, 0.0], [0.0, 2.0]]
+    @test tiled.supercell_vectors == [[2.0, 0.0], [0.0, 2.0]]
 end
 
 @testset "Bond and bonds()" begin
     unitcell = Lattice(
         [Dof(:cell, 1), Dof(:sub, 2)],
         [QN(cell=1, sub=1), QN(cell=1, sub=2)],
-        [[0.0, 0.0], [0.5, 0.0]];
-        vectors=[[1.0, 0.0], [0.0, 1.0]]
+        [[0.0, 0.0], [0.5, 0.0]]
     )
-    lattice = Lattice(unitcell, (2, 2))
+    lattice = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (2, 2))
 
     # Onsite bonds
     onsite = bonds(lattice, (:p, :p), 0)
@@ -169,20 +168,6 @@ end
     # Multiple neighbors
     multi = bonds(lattice, (:p, :p), [0, 1])
     @test length(multi) > length(onsite)
-
-    # Bonds that go beyond origin unitcell
-    unitcell2 = Lattice(
-        [Dof(:site, 1)],
-        [QN(site=1)],
-        [[0.0, 0.0]];
-        vectors=[[1.0, 0.0], [0.0, 1.0]],
-    )
-    nn1 = bonds(unitcell2, (:p, :p), 1)
-    @test any(b -> begin
-        shift = b.icoordinates[2]
-        norm(shift) > 0 &&
-        isapprox(b.coordinates[2], b.coordinates[1] + shift; atol=1e-8)
-    end, nn1)
 end
 
 @testset "Operators" begin
@@ -287,10 +272,9 @@ end
     unitcell = Lattice(
         [Dof(:cell, 1), Dof(:sub, 2)],
         [QN(cell=1, sub=1), QN(cell=1, sub=2)],
-        [[0.0, 0.0], [0.5, 0.0]];
-        vectors=[[1.0, 0.0], [0.0, 1.0]]
+        [[0.0, 0.0], [0.5, 0.0]]
     )
-    lattice = Lattice(unitcell, (2, 2))
+    lattice = Lattice(unitcell, [[1.0, 0.0], [0.0, 1.0]], (2, 2))
 
     # Full DOFs include spin
     dofs = SystemDofs([Dof(:cell, 4), Dof(:sub, 2), Dof(:spin, 2)])
