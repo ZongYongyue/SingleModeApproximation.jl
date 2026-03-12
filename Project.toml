@@ -1,6 +1,6 @@
 name = "MeanFieldTheories"
 uuid = "5cc7fde8-cb1c-4e9c-8eab-9f209b9d15ae"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Yong-Yue Zong"]
 
 [deps]
