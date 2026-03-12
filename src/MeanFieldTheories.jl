@@ -79,6 +79,7 @@ export build_T, build_U, solve_hfr
 export build_Tr, build_Tk, build_Vr, build_Vk, build_Uk
 export build_kpoints, solve_hfk
 export initialize_green_k, green_k_to_tau
+export plot
 
 # Export utility constants
 export PRECISION, rd

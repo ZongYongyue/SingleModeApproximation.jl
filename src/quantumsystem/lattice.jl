@@ -5,6 +5,8 @@ Provides types and functions for defining lattice structures,
 coordinate mappings, and bond generation for many-body systems.
 """
 
+using RecipesBase
+
 #==================== Lattice Specification ====================#
 
 """
@@ -267,7 +269,18 @@ function Bond(states::Vector{Q}, coordinates::Vector{Vector{T}}) where {Q<:Quant
 end
 
 function Base.show(io::IO, bond::Bond)
-    print(io, "Bond(", bond.states, ", ", bond.coordinates, ", icoords=", bond.icoordinates, ")")
+    _show_bond_plain(io, bond)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", bond::Bond)
+    _show_bond_plain(io, bond)
+end
+
+function _show_bond_plain(io::IO, bond::Bond)
+    states_str = "[" * join(string.(bond.states), ", ") * "]"
+    coords = [collect(v) for v in bond.coordinates]
+    icoords = [collect(v) for v in bond.icoordinates]
+    print(io, "Bond(", states_str, ", ", coords, ", ", icoords, ")")
 end
 
 """
@@ -336,13 +349,18 @@ end
 function bonds(
     lattice::Lattice{D, Q, T},
     boundary::NTuple{D, Symbol},
-    distances::Vector{<:Real};
-    tolerance::Real = 1e-6
+    distances::Vector{<:AbstractFloat};
+    tolerance::Real = 1e-4
 ) where {D, Q, T}
     supercell_vectors = _get_supercell_vectors(lattice)
+    cell_vectors = _infer_cell_vectors(lattice, supercell_vectors)
     result = Bond{Q, T, D}[]
     for d in distances
-        append!(result, _generate_distance_bonds(lattice, supercell_vectors, boundary, d, tolerance))
+        shift_range = _estimate_shift_range(d, supercell_vectors, boundary)
+        append!(result, _generate_distance_bonds(
+            lattice, supercell_vectors, boundary, d, tolerance;
+            shift_range=shift_range, cell_vectors=cell_vectors
+        ))
     end
     return result
 end
@@ -353,6 +371,56 @@ function _get_supercell_vectors(lattice::Lattice)
         error("lattice.supercell_vectors is not set. Use Lattice(unitcell, vectors, box_size) or set supercell_vectors manually.")
     end
     return lattice.supercell_vectors
+end
+
+# Helper: infer unit-cell translation vectors from a tiled lattice.
+# If inference fails, fall back to supercell_vectors.
+function _infer_cell_vectors(
+    lattice::Lattice{D,Q,T},
+    supercell_vectors::Vector{SVector{D,T}}
+) where {D,Q,T}
+    cell_size = lattice.position_dofs[1].size
+    cell_size <= 1 && return supercell_vectors
+
+    coords = lattice.coordinates
+    tol_perp = 1e-6
+    cell_vectors = Vector{SVector{D,T}}(undef, D)
+
+    for d in 1:D
+        v = supercell_vectors[d]
+        vnorm = norm(v)
+        if vnorm < 1e-12
+            cell_vectors[d] = v
+            continue
+        end
+        u = v / vnorm
+        pmin = Inf
+        for i in 1:length(coords)-1
+            ci = coords[i]
+            for j in i+1:length(coords)
+                delta = coords[j] - ci
+                p = dot(delta, u)
+                p <= 1e-8 && continue
+                perp = delta - p * u
+                norm(perp) > tol_perp && continue
+                pmin = min(pmin, p)
+            end
+        end
+        cell_vectors[d] = isfinite(pmin) ? rd(u * pmin) : v
+    end
+    return cell_vectors
+end
+
+# Helper: estimate how many supercell shifts are needed to cover a target distance
+function _estimate_shift_range(
+    distance::Real,
+    supercell_vectors::Vector{SVector{D,T}},
+    boundary::NTuple{D, Symbol}
+) where {D, T}
+    lens = [norm(supercell_vectors[d]) for d in 1:D if boundary[d] == :p]
+    isempty(lens) && return 0
+    min_len = minimum(lens)
+    return max(1, ceil(Int, distance / min_len) + 1)
 end
 
 # Helper: generate onsite bonds
@@ -372,12 +440,12 @@ function _min_image_distance(
     supercell_vectors::Vector{SVector{D,T}},
     boundary::NTuple{D, Symbol}
 ) where {D, T}
-    _, dist, _ = _min_image_delta(coord1, coord2, supercell_vectors, boundary)
+    _, dist, _, _ = _min_image_delta(coord1, coord2, supercell_vectors, boundary)
     return dist
 end
 
 # Helper: get actual delta vector with minimum image convention.
-# Returns (delta, dist, icell_shift) where icell_shift is the lattice vector
+# Returns (delta, dist, icell_shift, best_shifts) where icell_shift is the lattice vector
 # of the periodic image used — i.e. the unit-cell origin of coord2's image.
 function _min_image_delta(
     coord1::SVector{D,T},
@@ -405,7 +473,7 @@ function _min_image_delta(
     # icell_shift: the lattice vector of the cell containing coord2's image
     icell_shift = sum(best_shifts[d] * supercell_vectors[d] for d in 1:D)
 
-    return rd(best_delta), rd(min_dist), rd(icell_shift)
+    return rd(best_delta), rd(min_dist), rd(icell_shift), best_shifts
 end
 
 # Helper: generate neighbor bonds by order
@@ -415,33 +483,59 @@ function _generate_neighbor_bonds(
     boundary::NTuple{D, Symbol},
     neighbor_order::Int
 ) where {D, Q, T}
-    n_sites = length(lattice.position_states)
+    cell_vectors = _infer_cell_vectors(lattice, supercell_vectors)
+    levels = _neighbor_distance_levels(lattice, cell_vectors, boundary, neighbor_order)
+    if neighbor_order > length(levels)
+        error("neighbor_order=$neighbor_order exceeds available distance levels ($(length(levels)))")
+    end
 
-    # Compute all unique distances
-    distances = Set{T}()
-    for i in 1:n_sites
-        for j in (i+1):n_sites
-            d = _min_image_distance(
-                lattice.coordinates[i],
-                lattice.coordinates[j],
-                supercell_vectors, boundary
-            )
-            if d > 1e-10  # exclude self
-                push!(distances, d)  # already rounded by _min_image_distance
+    target_distance = levels[neighbor_order]
+    tolerance = 1e-6
+    return _generate_distance_bonds(
+        lattice, supercell_vectors, boundary, target_distance, tolerance;
+        shift_range=neighbor_order, cell_vectors=cell_vectors
+    )
+end
+
+# Helper: distance shells from a reference cell + unit-cell translations
+function _neighbor_distance_levels(
+    lattice::Lattice{D,Q,T},
+    cell_vectors::Vector{SVector{D,T}},
+    boundary::NTuple{D, Symbol},
+    max_n::Int
+) where {D,Q,T}
+    cell_dof = lattice.position_dofs[1].name
+    base_idx = [
+        i for (i, qn) in enumerate(lattice.position_states) if begin
+            data = getfield(qn, :data)
+            cell_dof in keys(data) && data[cell_dof] == 1
+        end
+    ]
+    isempty(base_idx) && (base_idx = collect(1:length(lattice.position_states)))
+
+    shift_ranges = [boundary[d] == :p ? (-max_n:max_n) : (0:0) for d in 1:D]
+    dists = Float64[]
+    for i in base_idx
+        for j in base_idx
+            for shifts in Iterators.product(shift_ranges...)
+                delta = lattice.coordinates[j] - lattice.coordinates[i]
+                for (dim, shift) in enumerate(shifts)
+                    delta = delta + shift * cell_vectors[dim]
+                end
+                dist = rd(sqrt(sum(delta .^ 2)))
+                dist > 1e-10 && push!(dists, dist)
             end
         end
     end
-
-    # Sort distances and get the n-th smallest
-    sorted_distances = sort(collect(distances))
-    if neighbor_order > length(sorted_distances)
-        error("neighbor_order=$neighbor_order exceeds available distance levels ($(length(sorted_distances)))")
+    sort!(dists)
+    levels = Float64[]
+    tol = 1e-6
+    for d in dists
+        if isempty(levels) || abs(d - levels[end]) > tol
+            push!(levels, d)
+        end
     end
-
-    target_distance = sorted_distances[neighbor_order]
-    tolerance = 1e-6
-
-    return _generate_distance_bonds(lattice, supercell_vectors, boundary, target_distance, tolerance)
+    return levels
 end
 
 """
@@ -464,6 +558,111 @@ function is_positive_direction(delta::AbstractVector{T}) where T
     return true  # zero vector (shouldn't happen for valid bonds)
 end
 
+# ───────────────────────────── Plot Recipe ─────────────────────────────
+
+@recipe function plot(
+    lattice::Lattice{2,Q,T},
+    boundary::NTuple{2,Symbol},
+    neighbors;
+    siteon=false,
+    colors=nothing
+) where {Q,T}
+    aspect_ratio := :equal
+    framestyle --> :box
+    legend --> true
+
+    _pick_colors(n) = begin
+        if colors === nothing
+            nothing
+        elseif colors isa Symbol
+            [colors for _ in 1:n]
+        else
+            c = collect(colors)
+            length(c) >= n ? c[1:n] : [c[(i-1) % length(c) + 1] for i in 1:n]
+        end
+    end
+
+    is_int = neighbors isa Int || neighbors isa AbstractVector{<:Integer}
+    orders = neighbors isa Int ? [neighbors] : collect(neighbors)
+
+    if is_int
+        cols = _pick_colors(length(orders))
+        for (idx, n) in enumerate(orders)
+            bonds_n = bonds(lattice, boundary, n)
+            xs = Float64[]
+            ys = Float64[]
+            for b in bonds_n
+                length(b.coordinates) < 2 && continue
+                push!(xs, b.coordinates[1][1]); push!(ys, b.coordinates[1][2])
+                push!(xs, b.coordinates[2][1]); push!(ys, b.coordinates[2][2])
+                push!(xs, NaN); push!(ys, NaN)
+            end
+            @series begin
+                seriestype := :path
+                label := "neighbor $n"
+                if cols !== nothing
+                    linecolor := cols[idx]
+                end
+                xs, ys
+            end
+        end
+    else
+        bonds_sel = bonds(lattice, boundary, neighbors)
+        dists = Float64[]
+        for b in bonds_sel
+            length(b.coordinates) < 2 && continue
+            push!(dists, rd(norm(b.coordinates[2] - b.coordinates[1])))
+        end
+        sort!(dists)
+        levels = Float64[]
+        tol = 1e-6
+        for d in dists
+            if isempty(levels) || abs(d - levels[end]) > tol
+                push!(levels, d)
+            end
+        end
+        cols = _pick_colors(length(levels))
+        for (idx, target) in enumerate(levels)
+            xs = Float64[]
+            ys = Float64[]
+            for b in bonds_sel
+                length(b.coordinates) < 2 && continue
+                isapprox(rd(norm(b.coordinates[2] - b.coordinates[1])), target; atol=tol) || continue
+                push!(xs, b.coordinates[1][1]); push!(ys, b.coordinates[1][2])
+                push!(xs, b.coordinates[2][1]); push!(ys, b.coordinates[2][2])
+                push!(xs, NaN); push!(ys, NaN)
+            end
+            @series begin
+                seriestype := :path
+                label := "len ≈ $(round(target, digits=4))"
+                if cols !== nothing
+                    linecolor := cols[idx]
+                end
+                xs, ys
+            end
+        end
+    end
+
+    # Sites (draw last, on top)
+    @series begin
+        seriestype := :scatter
+        markerstrokewidth --> 0
+        markercolor := :black
+        markersize := 3
+        label := ""
+        xs = Float64[]
+        ys = Float64[]
+        labels = String[]
+        for (i, c) in enumerate(lattice.coordinates)
+            push!(xs, c[1])
+            push!(ys, c[2])
+            push!(labels, siteon ? string(i) : "")
+        end
+        series_annotations := labels
+        xs, ys
+    end
+end
+
 # Helper: generate bonds at specific distance (unidirectional).
 #
 # Design: explicitly enumerate ALL periodic images of each site (analogous to
@@ -475,41 +674,45 @@ function _generate_distance_bonds(
     supercell_vectors::Vector{SVector{D,T}},
     boundary::NTuple{D, Symbol},
     distance::Real,
-    tolerance::Real
+    tolerance::Real;
+    shift_range::Int = 1,
+    cell_vectors::Vector{SVector{D,T}} = supercell_vectors
 ) where {D, Q, T}
     result   = Bond{Q, T, D}[]
     n_sites  = length(lattice.position_states)
     zero_sv  = zero(SVector{D,T})
 
-    # Shift ranges: ±1 for periodic directions, 0 only for open directions.
-    shift_ranges = [boundary[d] == :p ? (-1, 0, 1) : (0,) for d in 1:D]
+    # infer how many unit-cell steps each supercell vector contains
+    multipliers = map(1:D) do d
+        lv = norm(cell_vectors[d])
+        lv < 1e-12 ? 1 : max(1, round(Int, norm(supercell_vectors[d]) / lv))
+    end
 
-    for i in 1:n_sites
-        for j in 1:n_sites
-            i == j && continue
+    for i in 1:n_sites-1
+        for j in (i+1):n_sites
+            delta, dist, _, shifts = _min_image_delta(
+                lattice.coordinates[i],
+                lattice.coordinates[j],
+                supercell_vectors, boundary
+            )
+            abs(dist - distance) < tolerance || continue
+            dist > 1e-10 || continue
 
-            for shifts in Iterators.product(shift_ranges...)
-                # Cell-origin displacement for this periodic image of site j.
-                icell_shift = zero_sv
-                for (d, s) in enumerate(shifts)
-                    icell_shift = icell_shift + s * supercell_vectors[d]
-                end
+            coord1 = lattice.coordinates[i]
 
-                delta = rd(lattice.coordinates[j] - lattice.coordinates[i] + icell_shift)
-                dist  = rd(sqrt(sum(delta .^ 2)))
-
-                abs(dist - distance) < tolerance || continue
-                is_positive_direction(delta)      || continue
-
-                coord1 = lattice.coordinates[i]
-                coord2 = rd(coord1 + delta)
-
-                push!(result, Bond{Q,T,D}(
-                    [lattice.position_states[i], lattice.position_states[j]],
-                    [coord1, coord2],
-                    [zero_sv, rd(icell_shift)]
-                ))
+            # convert supercell shift into unit-cell shift
+            icell_shift = zero_sv
+            for d in 1:D
+                icell_shift = icell_shift + shifts[d] * multipliers[d] * cell_vectors[d]
             end
+
+            coord2 = rd(coord1 + delta)
+
+            push!(result, Bond{Q,T,D}(
+                [lattice.position_states[i], lattice.position_states[j]],
+                [coord1, coord2],
+                [zero_sv, rd(icell_shift)]
+            ))
         end
     end
 

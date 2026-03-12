@@ -168,6 +168,20 @@ end
     # Multiple neighbors
     multi = bonds(lattice, (:p, :p), [0, 1])
     @test length(multi) > length(onsite)
+
+    # Bonds that go beyond origin unitcell
+    unitcell2 = Lattice(
+        [Dof(:site, 1)],
+        [QN(site=1)],
+        [[0.0, 0.0]];
+        supercell_vectors=[[1.0, 0.0], [0.0, 1.0]],
+    )
+    nn1 = bonds(unitcell2, (:p, :p), 1)
+    @test any(b -> begin
+        shift = b.icoordinates[2]
+        norm(shift) > 0 &&
+        isapprox(b.coordinates[2], b.coordinates[1] + shift; atol=1e-8)
+    end, nn1)
 end
 
 @testset "Operators" begin
