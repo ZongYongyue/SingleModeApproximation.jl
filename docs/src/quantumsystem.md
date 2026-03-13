@@ -230,7 +230,7 @@ Operators are stored in the user-supplied order; reordering to creation-annihila
 `generate_onebody` iterates over all bonds and all combinations of internal DOFs, calling a user-supplied `value` function to assign the coefficient for each term:
 
 ```julia
-onebody = generate_onebody(dofs, bonds, value; order=(cdag, 1, c, 2), hc=true)
+onebody = generate_onebody(dofs, bonds, value; order=(cdag, :i, c, :j), hc=true)
 ```
 
 **Arguments:**

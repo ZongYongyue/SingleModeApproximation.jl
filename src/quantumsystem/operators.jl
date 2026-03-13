@@ -270,32 +270,36 @@ end
 #==================== General Term Generators ====================#
 
 """
-    generate_onebody(dofs, bonds, value; order=(cdag, 1, c, 2), hc=true)
+    generate_onebody(dofs, bonds, value; order=(cdag, :i, c, :j), hc=true)
 
 Generate one-body terms from bonds.
 
 # Arguments
 - `dofs::SystemDofs`: Full DOF specification (position + internal DOFs)
-- `bonds::Vector{Bond}`: Two-site bonds from bonds() function
+- `bonds::Vector{Bond}`: One- or two-site bonds from bonds() function
 - `value`: Coefficient, either:
   - `Number`: constant value for all internal DOF combinations
   - `Function(delta, qn1, qn2) -> Number`: custom function to constrain DOFs.
+    `delta = coord(op1_site) - coord(op2_site)` in the user-specified order.
 
 # Keyword Arguments
-- `order::Tuple`: Format `(op_type1, site1, op_type2, site2)`
-  - Default: `(cdag, 1, c, 2)` for standard hopping c†[site1] c[site2]
-- `hc::Bool`: whether to include the Hermitian conjugate terms
+- `order::Tuple`: Format `(op_type1, label1, op_type2, label2)` where labels are
+  **Symbols** acting as site indices.
+  - Default: `(cdag, :i, c, :j)` — standard hopping c†_i c_j
+  - Same label (e.g. `(cdag, :i, c, :i)`) — on-site/chemical-potential term
+  - Any operator order is accepted; operators are reordered to c†c alternating
+    form automatically with the fermionic sign absorbed into the coefficient.
+- `hc::Bool`: whether to include the Hermitian conjugate terms.
+  Ignored (no hc added) when both labels are identical (on-site terms), since
+  c†_i c_i is already self-contained and adding h.c. would double-count.
 
 # Returns
 `NamedTuple` with three parallel `Vector` fields:
-- `.ops::Vector{Operators}`: operator terms
-- `.delta::Vector{SVector{D,T}}`: physical displacement for each term
-  (`bond.coordinates[1] - bond.coordinates[2]`, i.e. site 1 minus site 2)
-- `.irvec::Vector{SVector{D,T}}`: unit-cell displacement for each term
-  (`bond.icoordinates[2] - bond.icoordinates[1]`); zero for intra-cell bonds,
-  non-zero for bonds crossing a periodic boundary
-
-For H.c. terms the sign of both `delta` and `irvec` is flipped.
+- `.ops::Vector{Operators}`: operator terms in c†c order, fermionic sign absorbed
+- `.delta::Vector{SVector{D,T}}`: physical displacement `coord(op1) - coord(op2)`
+  after reordering; sign is flipped for H.c. terms
+- `.irvec::Vector{SVector{D,T}}`: unit-cell displacement after reordering;
+  zero for intra-cell bonds, non-zero for bonds crossing a periodic boundary
 
 # NOTICE
   - All internal DOFs are mixed unless constrained via the `value` function.
@@ -307,20 +311,29 @@ result.ops    # Vector{Operators}
 result.delta  # physical displacements
 result.irvec  # unit-cell displacements (use this for momentum-space HF)
 
-# Access operators only (compatible with real-space HF)
-ops = generate_onebody(dofs, nn_bonds, -1.0).ops
+# On-site chemical potential (no h.c. added automatically)
+result = generate_onebody(dofs, onsite_bonds, -μ, order=(cdag, :i, c, :i))
+
+# Unconventional input order — reordered internally with correct sign
+result = generate_onebody(dofs, nn_bonds, 1.0, order=(c, :i, cdag, :j))
 ```
 """
 function generate_onebody(
     dofs::SystemDofs,
     bonds::Vector{<:Bond},
     value::Union{Number, Function};
-    order::Tuple = (cdag, 1, c, 2),
+    order::Tuple = (cdag, :i, c, :j),
     hc::Bool = true
 )
-    @assert length(order) == 4 "order must have 4 elements: (op_type1, site1, op_type2, site2)"
-    op_type1, site1, op_type2, site2 = order
-    @assert site1 in (1, 2) && site2 in (1, 2) "site indices must be 1 or 2"
+    @assert length(order) == 4 "order must have 4 elements: (op_type1, label1, op_type2, label2)"
+    op_type1, label1, op_type2, label2 = order
+    @assert label1 isa Symbol && label2 isa Symbol "order labels must be Symbols (e.g. :i, :j)"
+
+    unique_labels = unique([label1, label2])
+    k = length(unique_labels)          # 1 = on-site, 2 = hopping
+    label_col = Dict(l => idx for (idx, l) in enumerate(unique_labels))
+    # site_for_op[i]: which bond site (1-based) the i-th operator acts on
+    site_for_op = (label_col[label1], label_col[label2])
 
     SV         = eltype(first(bonds).coordinates)
     ops_list   = Operators[]
@@ -329,36 +342,52 @@ function generate_onebody(
 
     for bond in bonds
         @assert length(bond.states) in (1, 2) "One-body generator requires 1- or 2-site bonds"
+        nb = length(bond.states)
+        @assert nb >= k "bond has $nb sites but order requires $k distinct positions"
 
-        if length(bond.states) == 1
-            s1 = bond.states[1]
-            s2 = bond.states[1]
-            delta = rd(bond.coordinates[1] - bond.coordinates[1])
-            irvec = rd(bond.icoordinates[1] - bond.icoordinates[1])
-        else
-            s1, s2 = bond.states
-            delta  = rd(bond.coordinates[1]  - bond.coordinates[2])
-            irvec  = rd(bond.icoordinates[2] - bond.icoordinates[1])
-        end
-        pos_keys = keys(s1)
+        pos_keys = keys(bond.states[1])
+        qn_at = [[qn for qn in dofs.valid_states
+                  if all(qn[key] == bond.states[s][key] for key in pos_keys)]
+                 for s in 1:nb]
 
-        qn_at_site1 = [qn for qn in dofs.valid_states if all(qn[k] == s1[k] for k in pos_keys)]
-        qn_at_site2 = [qn for qn in dofs.valid_states if all(qn[k] == s2[k] for k in pos_keys)]
+        raw_ipos     = SV[bond.icoordinates[site_for_op[1]], bond.icoordinates[site_for_op[2]]]
+        raw_phys_pos = SV[bond.coordinates[site_for_op[1]],  bond.coordinates[site_for_op[2]]]
+        raw_delta    = rd(raw_phys_pos[1] - raw_phys_pos[2])
 
-        qn_list1 = site1 == 1 ? qn_at_site1 : qn_at_site2
-        qn_list2 = site2 == 1 ? qn_at_site1 : qn_at_site2
+        for qn1 in qn_at[site_for_op[1]], qn2 in qn_at[site_for_op[2]]
+            v = value isa Number ? value : value(raw_delta, qn1, qn2)
+            iszero(v) && continue
 
-        for qn1 in qn_list1, qn2 in qn_list2
-            v = value isa Number ? value : value(delta, qn1, qn2)
-            if !iszero(v)
-                push!(ops_list,   Operators(v, [op_type1(qn1), op_type2(qn2)]))
-                push!(delta_list, delta)
-                push!(irvec_list, irvec)
-                if hc
-                    push!(ops_list,   Operators(conj(v), [op_type1(qn2), op_type2(qn1)]))
-                    push!(delta_list, rd(-delta))
-                    push!(irvec_list, rd(-irvec))
-                end
+            raw_ops = FermionOp[op_type1(qn1), op_type2(qn2)]
+            sign, reord_ops, reord_ipos, reord_phys_pos =
+                _reorder_to_ca_alternating_with_two_positions(raw_ops, raw_ipos, raw_phys_pos)
+
+            delta = rd(reord_phys_pos[1] - reord_phys_pos[2])
+            irvec = rd(reord_ipos[1] - reord_ipos[2])
+
+            push!(ops_list,   Operators(sign * v, reord_ops))
+            push!(delta_list, delta)
+            push!(irvec_list, irvec)
+
+            # hc: only for hopping terms (2 distinct site labels)
+            # On-site terms (k == 1) are already self-contained; adding h.c. would double-count
+            if hc && k == 2
+                hc_op_type1 = op_type2 === cdag ? c : cdag
+                hc_op_type2 = op_type1 === cdag ? c : cdag
+                hc_raw_ops      = FermionOp[hc_op_type1(qn2), hc_op_type2(qn1)]
+                hc_raw_ipos     = SV[raw_ipos[2],     raw_ipos[1]]
+                hc_raw_phys_pos = SV[raw_phys_pos[2], raw_phys_pos[1]]
+
+                hc_sign, hc_reord_ops, hc_reord_ipos, hc_reord_phys_pos =
+                    _reorder_to_ca_alternating_with_two_positions(
+                        hc_raw_ops, hc_raw_ipos, hc_raw_phys_pos)
+
+                hc_delta = rd(hc_reord_phys_pos[1] - hc_reord_phys_pos[2])
+                hc_irvec = rd(hc_reord_ipos[1] - hc_reord_ipos[2])
+
+                push!(ops_list,   Operators(hc_sign * conj(v), hc_reord_ops))
+                push!(delta_list, hc_delta)
+                push!(irvec_list, hc_irvec)
             end
         end
     end

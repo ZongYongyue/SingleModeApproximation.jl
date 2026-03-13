@@ -316,13 +316,9 @@ band_plots = Vector{Plots.Plot}(undef, nb)
 
 for (i, U) in enumerate(U_bands)
     r = results[U]
-    _, (nA_up, nA_dn, nB_up, nB_dn) = afm_order_and_densities(r.r_gs.G_k)
-    onebody_eff = build_on_site_onebody(nA_up, nA_dn, nB_up, nB_dn, U)
-    T_r_eff = build_Tr(dofs, onebody_eff.ops, onebody_eff.irvec)
-    T_eff = build_Tk(T_r_eff)
-
-    bands = [eigvals(Hermitian(T_eff(k))) for k in k_path]
-    bands_mat = hcat(bands...)
+    U_ops = build_U_ops(U)
+    twobody = (ops=U_ops.ops, delta=U_ops.delta, irvec=U_ops.irvec)
+    bands_mat, _ = energy_bands(dofs, onebody_hop, twobody, kpoints, r.r_gs.G_k, k_path)
 
     p = plot(; title = "U/t = $(U)",
         xticks = (xtick_pos, xtick_lab),

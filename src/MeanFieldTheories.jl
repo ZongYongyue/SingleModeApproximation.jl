@@ -38,7 +38,7 @@ using StaticArrays: SVector
 using SparseArrays: sparse, nnz
 
 using LinearAlgebra: norm, dot, eigen, Hermitian, tr, ishermitian,
-                     Diagonal, mul!, adjoint, transpose
+                     Diagonal, mul!, adjoint, transpose, eigvals
 
 import Dates  # used as Dates.now(), Dates.hour(), Dates.minute(), Dates.second()
 
@@ -77,7 +77,7 @@ export build_onebody_matrix, build_interaction_tensor
 # Export Hartree-Fock functions
 export build_T, build_U, solve_hfr
 export build_Tr, build_Tk, build_Vr, build_Vk, build_Uk
-export build_kpoints, solve_hfk
+export build_kpoints, solve_hfk, energy_bands
 export initialize_green_k, green_k_to_tau
 
 # Export utility constants

@@ -737,6 +737,112 @@ function build_heff_k!(
     end
 end
 
+"""
+    energy_bands(dofs, onebody, twobody, kgrid, G_k, qpoints; include_fock=true)
+        -> (bands::Matrix{Float64}, H_q::Array{ComplexF64,3})
+
+Compute strict HF band energies along arbitrary q-points from a converged G_k
+on a uniform k-grid. Returns the band matrix (d × Nq) and the full H(q).
+"""
+function energy_bands(
+    dofs::SystemDofs,
+    onebody,
+    twobody,
+    kgrid::Vector{Vector{Float64}},
+    G_k::Array{ComplexF64, 3},
+    qpoints::Vector{Vector{Float64}};
+    include_fock::Bool = true
+)
+    Nk = length(kgrid)
+    d  = length(dofs.valid_states)
+
+    T_r = build_Tr(dofs, onebody.ops, onebody.irvec)
+    T_k_func = build_Tk(T_r)
+
+    V_r = build_Vr(dofs, twobody.ops, twobody.irvec)
+    classified = isempty(V_r.mats) ? nothing : _classify_Vr(V_r)
+    wr_A = classified !== nothing ? build_Wr_A(classified.A.mats, classified.A.taus) : nothing
+    wr_B = classified !== nothing ? build_Wr_B(classified.B.mats, classified.B.taus) : nothing
+    wr_C = classified !== nothing ? build_Wr_C(classified.C.mats, classified.C.taus) : nothing
+    V_k_func = (classified !== nothing && !isempty(classified.general.mats)) ?
+               build_Vk((mats=classified.general.mats, taus=classified.general.taus)) : nothing
+
+    taus_needed, tau_idx = _collect_taus_k(wr_A, wr_B, wr_C)
+    G_taus_buf = [zeros(ComplexF64, d, d) for _ in taus_needed]
+    green_k_to_tau!(G_taus_buf, G_k, kgrid, taus_needed)
+    G_bar = dropdims(sum(G_k, dims=3), dims=3) ./ Nk
+
+    g_adj_buf = zeros(ComplexF64, d, d)
+    f_buf = zeros(ComplexF64, d * d)
+
+    Nq = length(qpoints)
+    H_q = Array{ComplexF64, 3}(undef, d, d, Nq)
+
+    for (qi, q) in enumerate(qpoints)
+        H = T_k_func !== nothing ? T_k_func(q) : zeros(ComplexF64, d, d)
+
+        if wr_A !== nothing
+            if wr_A.hartree !== nothing
+                mul!(f_buf, wr_A.hartree, vec(G_bar))
+                H .+= reshape(f_buf, d, d)
+            end
+            if include_fock && wr_A.fock.mats !== nothing
+                for (K, τ) in zip(wr_A.fock.mats, wr_A.fock.delta)
+                    mul!(f_buf, K, vec(G_taus_buf[tau_idx[τ]]))
+                    H .+= reshape(f_buf, d, d) .* (-cis(dot(q, τ)))
+                end
+            end
+        end
+
+        if wr_B !== nothing
+            if wr_B.hartree.mats !== nothing
+                for (K, τ) in zip(wr_B.hartree.mats, wr_B.hartree.delta)
+                    mul!(f_buf, K, vec(G_taus_buf[tau_idx[τ]]))
+                    H .+= reshape(f_buf, d, d) .* cis(dot(q, τ))
+                end
+            end
+            if include_fock && wr_B.fock !== nothing
+                mul!(f_buf, wr_B.fock, vec(G_bar))
+                H .-= reshape(f_buf, d, d)
+            end
+        end
+
+        if wr_C !== nothing
+            if wr_C.hartree.mats !== nothing
+                for (K, τ) in zip(wr_C.hartree.mats, wr_C.hartree.delta)
+                    g_adj_buf .= adjoint(G_taus_buf[tau_idx[τ]])
+                    mul!(f_buf, K, vec(g_adj_buf))
+                    H .+= reshape(f_buf, d, d) .* cis(dot(q, τ))
+                end
+            end
+            if include_fock && wr_C.fock.mats !== nothing
+                for (K, τ) in zip(wr_C.fock.mats, wr_C.fock.delta)
+                    g_adj_buf .= adjoint(G_taus_buf[tau_idx[τ]])
+                    mul!(f_buf, K, vec(g_adj_buf))
+                    H .+= reshape(f_buf, d, d) .* (-cis(dot(q, τ)))
+                end
+            end
+        end
+
+        if V_k_func !== nothing
+            U_func = build_Uk(V_k_func)
+            for (ki, k) in enumerate(kgrid)
+                U = U_func(k, q)
+                H .+= reshape(U * vec(@view G_k[:,:,ki]), d, d) ./ Nk
+            end
+        end
+
+        H_q[:,:,qi] = H
+    end
+
+    bands = Matrix{Float64}(undef, d, Nq)
+    for qi in 1:Nq
+        bands[:, qi] = eigvals(Hermitian(@view H_q[:,:,qi]))
+    end
+
+    return bands, H_q
+end
+
 # ──────────────── Diagonalization and occupation ────────────────
 
 """
