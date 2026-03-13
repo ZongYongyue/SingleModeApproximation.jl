@@ -17,6 +17,7 @@ makedocs(;
         "Home" => "index.md",
         "Quantum System" => "quantumsystem.md",
         "Hartree-Fock Approximation" => [
+            "Introduction"    => "hartreefock_intro.md",
             "Real Space"      => "hartreefock_real.md",
             "Momentum Space"  => "hartreefock_momentum.md",
         ],
