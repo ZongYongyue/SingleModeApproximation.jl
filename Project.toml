@@ -1,6 +1,6 @@
 name = "MeanFieldTheories"
 uuid = "5cc7fde8-cb1c-4e9c-8eab-9f209b9d15ae"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Yong-Yue Zong"]
 
 [deps]
@@ -10,6 +10,12 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+
+[extensions]
+MakieExt = "Makie"
 
 [compat]
 StaticArrays = "1.9.17"

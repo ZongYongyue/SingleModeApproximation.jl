@@ -26,7 +26,7 @@ Run:
 using Printf
 using LinearAlgebra
 using MeanFieldTheories
-using Plots
+using CairoMakie
 
 # ── Model parameters ──────────────────────────────────────────────────────────
 const t_ext = 1.0
@@ -146,6 +146,7 @@ for V in Vs
     push!(Sq_list,    S_q)
     push!(Nq_list,    N_q)
     push!(phase_list, phase)
+
 end
 
 # ── Save data ─────────────────────────────────────────────────────────────────
@@ -158,33 +159,23 @@ open(joinpath(@__DIR__, "res.dat"), "w") do f
 end
 
 # ── Plot ──────────────────────────────────────────────────────────────────────
-plt = plot(
-    xlabel = "V",
-    ylabel = "Order parameter",
-    title  = "Extended Hubbard model  (t=1, U=$(U_ext), half-filling)",
-    legend = :topleft,
-    framestyle = :box,
-    size = (600, 400),
-)
-plot!(plt, Vs_list, Sq_list,
-    label  = "S(π,π)  staggered magnetization",
-    marker = :circle,
-    color  = :green,
-    lw     = 2,
-)
-plot!(plt, Vs_list, Nq_list,
-    label  = "N(π,π)  staggered density",
-    marker = :square,
-    color  = :blue,
-    lw     = 2,
-)
-vline!(plt, [U_ext/4],
-    label     = "V/U = 1/4 (Vc = $(U_ext/4))",
-    linestyle = :dash,
-    color     = :gray,
-    lw        = 1,
-)
+fig_pd = Figure(size = (600, 400))
+ax_pd  = Axis(fig_pd[1, 1];
+              xlabel = "V",
+              ylabel = "Order parameter",
+              title  = "Extended Hubbard model  (t=1, U=$(U_ext), half-filling)")
+
+scatterlines!(ax_pd, Vs_list, Sq_list;
+    label = "S(π,π)  staggered magnetization",
+    marker = :circle, color = :green, linewidth = 2)
+scatterlines!(ax_pd, Vs_list, Nq_list;
+    label = "N(π,π)  staggered density",
+    marker = :rect, color = :blue, linewidth = 2)
+vlines!(ax_pd, [U_ext/4];
+    label = "V/U = 1/4  (Vc = $(U_ext/4))",
+    linestyle = :dash, color = :gray, linewidth = 1)
+axislegend(ax_pd; position = :lt)
 
 outfile = joinpath(@__DIR__, "sdw_cdw.png")
-savefig(plt, outfile)
+save(outfile, fig_pd)
 println("\nPlot saved to $outfile")

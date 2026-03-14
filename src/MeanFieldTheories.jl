@@ -54,6 +54,7 @@ include("quantumsystem/operators.jl")
 # Export ground state methods
 include("groundstate/hartreefock_real.jl")
 include("groundstate/hartreefock_momentum.jl")
+include("groundstate/analysis.jl")
 
 # Export core types
 export QuantumNumber, QN, Dof, SystemDofs
@@ -79,6 +80,8 @@ export build_T, build_U, solve_hfr
 export build_Tr, build_Tk, build_Vr, build_Vk, build_Uk
 export build_kpoints, solve_hfk, energy_bands
 export initialize_green_k, green_k_to_tau
+export local_magnetization, print_magnetization, plot_magnetization
+export plot_lattice
 
 # Export utility constants
 export PRECISION, rd

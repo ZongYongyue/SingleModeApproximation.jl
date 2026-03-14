@@ -549,3 +549,56 @@ function _generate_distance_bonds(
 
     return result
 end
+
+# ──────────────── Plotting stub (implemented in ext/MakieExt.jl) ─────────────
+
+"""
+    plot_lattice(lattice; kwargs...) -> Figure
+
+Visualize a `Lattice`: sites (optionally colored by a DOF) and one or more
+sets of bonds drawn as line segments.
+
+Requires Makie to be loaded before calling:
+```julia
+using GLMakie    # interactive
+using CairoMakie # save to file
+```
+
+# Arguments
+- `lattice`: the `Lattice` to visualize
+
+# Keyword arguments
+| kwarg             | default      | description                                             |
+|-------------------|--------------|---------------------------------------------------------|
+| `bond_lists`      | `nothing`    | `Vector{Vector{Bond}}` or single `Vector{Bond}`         |
+| `bond_colors`     | auto palette | per-list line colors                                    |
+| `bond_labels`     | `[]`         | per-list legend labels                                  |
+| `bond_widths`     | `1.5`        | per-list or scalar line width                           |
+| `bond_styles`     | `:solid`     | per-list or scalar line style (`:solid`, `:dash`, …)   |
+| `site_groupby`    | `nothing`    | `Symbol`: DOF name to split sites into colored groups   |
+| `site_colors`     | auto palette | per-group or scalar site color                          |
+| `site_labels`     | auto         | per-group labels (default: `"<dof>=<value>"`)           |
+| `site_markersize` | `10`         | site marker size                                        |
+| `title`           | `""`         | figure title                                            |
+
+# Example
+```julia
+using CairoMakie
+unitcell = Lattice([Dof(:cell,1), Dof(:sub,2,[:A,:B])],
+                   [QN(cell=1,sub=1), QN(cell=1,sub=2)],
+                   [[0.0,0.0],[1.0,0.0]]; vectors=[[0.0,√3],[1.5,√3/2]])
+lattice  = Lattice(unitcell, (4, 4))
+nn  = bonds(lattice, (:p,:p), 1)
+nnn = bonds(lattice, (:p,:p), 2)
+
+fig = plot_lattice(lattice;
+    bond_lists   = [nn, nnn],
+    bond_colors  = [:tomato, :steelblue],
+    bond_labels  = ["NN", "NNN"],
+    site_groupby = :sub,
+    site_colors  = [:seagreen, :mediumpurple])
+save("lattice.png", fig)
+```
+"""
+function plot_lattice end
+

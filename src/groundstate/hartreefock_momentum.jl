@@ -752,10 +752,12 @@ end
 
 """
     energy_bands(dofs, onebody, twobody, kgrid, G_k, qpoints; include_fock=true)
-        -> (bands::Matrix{Float64}, H_q::Array{ComplexF64,3})
+        -> (bands::Matrix{Float64}, eigenvectors::Array{ComplexF64,3})
 
 Compute strict HF band energies along arbitrary q-points from a converged G_k
-on a uniform k-grid. Returns the band matrix (d × Nq) and the full H(q).
+on a uniform k-grid. Returns the band matrix (d × Nq) and the eigenvector tensor
+(d × d × Nq), where `eigenvectors[:, n, qi]` is the n-th eigenvector at q-point qi
+(columns sorted by ascending eigenvalue).
 """
 function energy_bands(
     dofs::SystemDofs,
@@ -789,7 +791,8 @@ function energy_bands(
     f_buf = zeros(ComplexF64, d * d)
 
     Nq = length(qpoints)
-    H_q = Array{ComplexF64, 3}(undef, d, d, Nq)
+    bands = Matrix{Float64}(undef, d, Nq)
+    evecs = Array{ComplexF64, 3}(undef, d, d, Nq)
 
     for (qi, q) in enumerate(qpoints)
         H = T_k_func !== nothing ? T_k_func(q) : zeros(ComplexF64, d, d)
@@ -845,15 +848,12 @@ function energy_bands(
             end
         end
 
-        H_q[:,:,qi] = H
+        F = eigen(Hermitian(H))
+        bands[:, qi]    = F.values
+        evecs[:, :, qi] = F.vectors
     end
 
-    bands = Matrix{Float64}(undef, d, Nq)
-    for qi in 1:Nq
-        bands[:, qi] = eigvals(Hermitian(@view H_q[:,:,qi]))
-    end
-
-    return bands, H_q
+    return bands, evecs
 end
 
 # ──────────────── Diagonalization and occupation ────────────────
